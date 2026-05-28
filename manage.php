@@ -42,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ln    = trim($_POST['last_name']  ?? '');
         $em    = strtolower(trim($_POST['email'] ?? ''));
         $role  = $_POST['role']     ?? 'U';
-        $bldg  = ($role === 'BA') ? (trim($_POST['building'] ?? '') ?: null) : null;
+        $bldg  = in_array($role, ['BA','BT','BC','BM']) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($fn && $ln && $em && in_array($role, ['A','M','BA','U'])) {
+        if ($fn && $ln && $em && in_array($role, ['A','M','BA','BT','BC','BM','U'])) {
             $stmt = $conn->prepare("INSERT INTO users (first_name,last_name,email,role,building) VALUES (?,?,?,?,?)");
             $stmt->bind_param('sssss', $fn, $ln, $em, $role, $bldg);
             $stmt->execute();
@@ -61,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
         $role  = $_POST['role']     ?? 'U';
-        $bldg  = ($role === 'BA') ? (trim($_POST['building'] ?? '') ?: null) : null;
+        $bldg  = in_array($role, ['BA','BT','BC','BM']) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($id && $fn && $ln && in_array($role, ['A','M','BA','U'])) {
+        if ($id && $fn && $ln && in_array($role, ['A','M','BA','BT','BC','BM','U'])) {
             $stmt = $conn->prepare("UPDATE users SET first_name=?,last_name=?,role=?,building=? WHERE id=?");
             $stmt->bind_param('ssssi', $fn, $ln, $role, $bldg, $id);
             $stmt->execute();
@@ -94,7 +94,7 @@ if ($res) {
 $conn->close();
 
 $buildings = ['CHS','BHS','THS','TMS','CSMS','BMS','CNMS','JHC'];
-$role_labels = ['A'=>'Admin','M'=>'Manager','BA'=>'Building Admin','U'=>'User'];
+$role_labels = ['A'=>'Admin','M'=>'Manager','BA'=>'Building Admin','BT'=>'Building Tech','BC'=>'Building Custodian','BM'=>'Building Maintenance','U'=>'User'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -126,7 +126,8 @@ $role_labels = ['A'=>'Admin','M'=>'Manager','BA'=>'Building Admin','U'=>'User'];
 
 /* ── USERS TABLE ── */
 .table-wrap{background:#fff;border:1px solid #e8ecf0;border-radius:12px;overflow:hidden;margin-bottom:32px}
-.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.data-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .data-table th{padding:11px 16px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7a8d;background:#f8f9fa;border-bottom:1px solid #e8ecf0}
 .data-table td{padding:13px 16px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
 .data-table tr:last-child td{border-bottom:none}
@@ -139,6 +140,9 @@ $role_labels = ['A'=>'Admin','M'=>'Manager','BA'=>'Building Admin','U'=>'User'];
 .badge-m {background:#fef3c7;color:#92400e}
 .badge-ba{background:#e6f7fb;color:#1a9ab8}
 .badge-u {background:#f1f5f9;color:#475569}
+.badge-bt{background:#dcfce7;color:#166534}
+.badge-bc{background:#fef9c3;color:#854d0e}
+.badge-bm{background:#ffe4e6;color:#9f1239}
 .badge-active  {background:#d1fae5;color:#065f46}
 .badge-inactive{background:#fee2e2;color:#991b1b}
 
@@ -209,6 +213,9 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <button class="filter-tab" data-role="A">Admins</button>
             <button class="filter-tab" data-role="M">Managers</button>
             <button class="filter-tab" data-role="BA">Building Admins</button>
+            <button class="filter-tab" data-role="BT">Building Tech</button>
+            <button class="filter-tab" data-role="BC">Building Custodian</button>
+            <button class="filter-tab" data-role="BM">Building Maintenance</button>
             <button class="filter-tab" data-role="U">Users</button>
         </div>
         <div class="search-wrap">
@@ -219,6 +226,14 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     <!-- Users table -->
     <div class="table-wrap">
         <table class="data-table" id="users-table">
+            <colgroup>
+                <col style="width:18%">
+                <col style="width:24%">
+                <col style="width:12%">
+                <col style="width:10%">
+                <col style="width:10%">
+                <col style="width:26%">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Name</th>
@@ -325,6 +340,9 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                         <select id="f-role" name="role" required>
                             <option value="U">User</option>
                             <option value="BA">Building Admin</option>
+                            <option value="BT">Building Tech</option>
+                            <option value="BC">Building Custodian</option>
+                            <option value="BM">Building Maintenance</option>
                             <option value="M">Manager</option>
                             <option value="A">Admin</option>
                         </select>
@@ -376,8 +394,8 @@ function filterTable() {
 // ── Building field visibility ─────────────────────────────
 document.getElementById('f-role').addEventListener('change', function() {
     const bg = document.getElementById('building-group');
-    bg.classList.toggle('visible', this.value === 'BA');
-    document.getElementById('f-building').required = this.value === 'BA';
+    bg.classList.toggle('visible', ['BA','BT','BC','BM'].includes(this.value));
+    document.getElementById('f-building').required = ['BA','BT','BC','BM'].includes(this.value);
 });
 
 // ── Add user modal ────────────────────────────────────────
@@ -410,7 +428,7 @@ document.querySelectorAll('.edit-btn').forEach(function(btn) {
         document.getElementById('f-role').value     = role;
         document.getElementById('f-building').value = this.dataset.building;
         const bg = document.getElementById('building-group');
-        bg.classList.toggle('visible', role === 'BA');
+        bg.classList.toggle('visible', ['BA','BT','BC','BM'].includes(role));
         document.getElementById('user-modal').classList.add('open');
     });
 });
