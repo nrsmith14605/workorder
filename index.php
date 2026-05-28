@@ -58,6 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
         'id'      => $payload['sub'],
         'email'   => $email,
         'name'    => $payload['name']           ?? 'User',
+        'given_name'  => $payload['given_name']  ?? '',
+        'family_name' => $payload['family_name'] ?? '',
         'picture' => $payload['picture']        ?? '',
         'verified'=> $payload['email_verified'] ?? false
     ];
