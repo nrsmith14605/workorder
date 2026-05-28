@@ -79,7 +79,7 @@ $role_style = $role_colors[$user_role] ?? $role_colors['U'];
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh}
+body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
 
 :root{
 
@@ -123,7 +123,8 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 
 .nav-left{display:flex;align-items:center;gap:14px}
 
-.nav-logo{width:36px;height:36px;background:var(--cyan);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.nav-logo{width:36px;height:36px;background:var(--cyan);border-radius:9px;display:flex;align-items:center;justify-content:center;text-decoration:none;transition:background .15s}
+.nav-logo:hover{background:var(--cyan-dark)}
 
 .nav-logo i{color:#fff;font-size:19px}
 
@@ -191,7 +192,7 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 
 /* ── MAIN ── */
 
-.main{max-width:920px;margin:0 auto;padding:32px 20px 80px}
+.main{max-width:1300px;margin:0 auto;padding:32px 24px 48px;flex:1}
 
 
 
@@ -243,19 +244,32 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 
 
 
-/* ── WORK ORDERS TABLE ── */
-
+.nav-links{display:flex;align-items:center;gap:4px;margin-left:20px}
+.nav-link{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:#6b7a8d;text-decoration:none;transition:all .12s;border:none;background:transparent;cursor:pointer;font-family:'Barlow',sans-serif}
+.nav-link:hover{background:#f0f4f8;color:#1a1a2e}
+.nav-link.active{background:var(--cyan-light);color:var(--cyan-dark)}
+/* ── WO TABLE ── */
 .wo-table-wrap{background:#fff;border:1px solid #e8ecf0;border-radius:12px;overflow:hidden}
 
-.wo-table{width:100%;border-collapse:collapse;font-size:13px}
+.wo-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 
-.wo-table th{padding:11px 16px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7a8d;background:#f8f9fa;border-bottom:1px solid #e8ecf0}
+.wo-table th{padding:9px 8px;text-align:left;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6b7a8d;background:#f8f9fa;border-bottom:1px solid #e8ecf0;white-space:nowrap;overflow:hidden}
 
-.wo-table td{padding:14px 16px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
+.wo-table td{padding:11px 8px;border-bottom:1px solid #f0f4f8;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .wo-table tr:last-child td{border-bottom:none}
 
-.wo-table tr:hover td{background:#f8f9fa}
+.wo-table tbody tr:hover td{background:#f0f8fb;cursor:pointer}
+
+.wo-table th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+.wo-table th.sortable:hover{background:#eef1f5;color:#1a1a2e}
+.wo-table th.sort-asc .sort-icon::after{content:'↑';display:inline;margin-left:2px}
+.wo-table th.sort-desc .sort-icon::after{content:'↓';display:inline;margin-left:2px}
+.wo-table th.sort-asc .sort-icon,
+.wo-table th.sort-desc .sort-icon{color:var(--cyan)}
+.sort-icon{font-size:10px;color:#d0d5dd;margin-left:3px;transition:color .12s}
+.wo-table th.sort-asc,
+.wo-table th.sort-desc{color:var(--cyan-dark);background:#f0f9fb}
 
 .wo-id{font-weight:700;color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:14px;white-space:nowrap}
 
@@ -559,6 +573,21 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
 .form-spacer{height:16px}
 
+/* ── DETAIL MODAL ── */
+.detail-modal{max-width:700px}
+.detail-section{margin-bottom:20px}
+.detail-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aab0bb;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f4f8}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.detail-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;display:block;margin-bottom:3px}
+.detail-field p{font-size:13px;color:#1a1a2e;font-weight:500;line-height:1.5}
+.detail-field.full{grid-column:1/-1}
+.detail-desc{background:#f8f9fa;border-radius:9px;padding:12px 14px;font-size:13px;color:#3d4f5e;line-height:1.65;white-space:pre-wrap}
+.attachment-thumb{width:100%;border-radius:9px;border:1px solid #e8ecf0;overflow:hidden;background:#f8f9fa;display:flex;align-items:center;justify-content:center;min-height:120px}
+.attachment-thumb img{width:100%;height:auto;display:block}
+.attachment-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;color:#aab0bb;gap:8px;font-size:12px}
+.attachment-placeholder i{font-size:28px}
+.status-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
 
 
 /* ── FOOTER ── */
@@ -570,6 +599,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     border-top:1px solid rgba(27,188,212,0.12);
 
     padding:28px 28px 24px;
+
+    flex-shrink:0;
 
 }
 
@@ -671,7 +702,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <div class="nav-left">
 
-        <div class="nav-logo"><i class="ti ti-tools" aria-hidden="true"></i></div>
+        <a href="main.php" class="nav-logo" aria-label="Home" title="Home"><i class="ti ti-home" aria-hidden="true"></i></a>
 
         <div class="nav-title">Warrick County <span>Work Order System</span></div>
 
@@ -839,9 +870,9 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
             <button class="filter-tab active" data-filter="all">All</button>
 
-            <button class="filter-tab" data-filter="active">Active</button>
+            <button class="filter-tab" data-filter="open">Open</button>
 
-            <button class="filter-tab" data-filter="completed">Completed</button>
+            <button class="filter-tab" data-filter="closed">Closed</button>
 
         </div>
 
@@ -853,23 +884,45 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
         <table class="wo-table" id="wo-table">
 
+            <colgroup>
+                <col style="width:7%">   <!-- WO # -->
+                <col style="width:10%">  <!-- Submitted By -->
+                <col style="width:8%">   <!-- Type -->
+                <col style="width:7%">   <!-- Building -->
+                <col style="width:9%">   <!-- Room -->
+                <col style="width:17%">  <!-- Description -->
+                <col style="width:9%">   <!-- Avail Time -->
+                <col style="width:10%">  <!-- Problem Type -->
+                <col style="width:6%">   <!-- Priority -->
+                <col style="width:9%">   <!-- Status -->
+                <col style="width:8%">   <!-- Submitted -->
+            </colgroup>
+
             <thead>
 
                 <tr>
 
-                    <th>WO #</th>
+                    <th data-sort="wo" class="sortable">WO # <span class="sort-icon">↕</span></th>
 
-                    <th>Type</th>
+                    <th data-sort="submitter" class="sortable">Submitted By <span class="sort-icon">↕</span></th>
 
-                    <th>Building</th>
+                    <th data-sort="type" class="sortable">Type <span class="sort-icon">↕</span></th>
+
+                    <th data-sort="building" class="sortable">Building <span class="sort-icon">↕</span></th>
+
+                    <th data-sort="room" class="sortable">Room <span class="sort-icon">↕</span></th>
 
                     <th>Description</th>
 
-                    <th>Priority</th>
+                    <th>Avail. Time</th>
 
-                    <th>Status</th>
+                    <th data-sort="problem" class="sortable">Problem Type <span class="sort-icon">↕</span></th>
 
-                    <th>Submitted</th>
+                    <th data-sort="priority" class="sortable">Priority <span class="sort-icon">↕</span></th>
+
+                    <th data-sort="status" class="sortable">Status <span class="sort-icon">↕</span></th>
+
+                    <th data-sort="submitted" class="sortable">Submitted <span class="sort-icon">↕</span></th>
 
                 </tr>
 
@@ -879,39 +932,85 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
                 <!-- Populated from DB — placeholder rows below for layout preview -->
 
-                <tr class="wo-row" data-status="active">
+                <tr class="wo-row" data-filter="open"
+                    data-wo="WO-100001"
+                    data-name="John Smith"
+                    data-submitter="j.smith"
+                    data-email="j.smith@warrick.k12.in.us"
+                    data-type="Maintenance"
+                    data-building="CHS"
+                    data-room="Room 214"
+                    data-desc="HVAC unit making loud grinding noise near the ceiling vents. Started about 3 days ago and getting worse. Classroom is very loud."
+                    data-time-from="8:00 AM" data-time-to="3:00 PM"
+                    data-purpose="General Maintenance"
+                    data-problem="Heating and Cooling"
+                    data-priority="High"
+                    data-status="Pending Approval"
+                    data-submitted="May 10, 2025"
+                    data-attachment="">
 
                     <td><span class="wo-id">WO-100001</span></td>
 
+                    <td style="color:#6b7a8d">John Smith</td>
+
                     <td><span class="badge badge-maint">Maintenance</span></td>
 
-                    <td>CHS</td>
+                    <td><strong>CHS</strong></td>
+
+                    <td style="color:#6b7a8d;font-size:11px">Room 214</td>
 
                     <td class="wo-desc">HVAC unit making loud grinding noise</td>
+
+                    <td style="color:#6b7a8d;font-size:11px">8:00 AM – 3:00 PM</td>
+
+                    <td style="color:#6b7a8d;font-size:11px">Heating and Cooling</td>
 
                     <td><span class="pri pri-high">High</span></td>
 
                     <td><span class="badge badge-pending">Pending Approval</span></td>
 
-                    <td style="color:#6b7a8d;font-size:12px;white-space:nowrap">May 10, 2025</td>
+                    <td style="color:#6b7a8d;font-size:11px">May 10, 2025</td>
 
                 </tr>
 
-                <tr class="wo-row" data-status="completed">
+                <tr class="wo-row" data-filter="closed"
+                    data-wo="WO-100002"
+                    data-name="Tim Jones"
+                    data-submitter="t.jones"
+                    data-email="t.jones@warrick.k12.in.us"
+                    data-type="Technology"
+                    data-building="CHS"
+                    data-room="Classroom 101"
+                    data-desc="Projector bulb replacement needed. Image is very dim and flickering."
+                    data-time-from="" data-time-to=""
+                    data-purpose=""
+                    data-problem=""
+                    data-priority="Low"
+                    data-status="Completed"
+                    data-submitted="May 5, 2025"
+                    data-attachment="">
 
                     <td><span class="wo-id">WO-100002</span></td>
 
+                    <td style="color:#6b7a8d">Tim Jones</td>
+
                     <td><span class="badge badge-tech">Technology</span></td>
 
-                    <td>CHS</td>
+                    <td><strong>CHS</strong></td>
+
+                    <td style="color:#6b7a8d;font-size:11px">Classroom 101</td>
 
                     <td class="wo-desc">Projector bulb replacement needed</td>
+
+                    <td style="color:#6b7a8d;font-size:11px">—</td>
+
+                    <td style="color:#6b7a8d;font-size:11px">—</td>
 
                     <td><span class="pri pri-low">Low</span></td>
 
                     <td><span class="badge badge-completed">Completed</span></td>
 
-                    <td style="color:#6b7a8d;font-size:12px;white-space:nowrap">May 5, 2025</td>
+                    <td style="color:#6b7a8d;font-size:11px">May 5, 2025</td>
 
                 </tr>
 
@@ -1359,6 +1458,201 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
 <!-- ============================================================
 
+     WORK ORDER DETAIL MODAL
+
+============================================================ -->
+
+<div class="modal-overlay" id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
+
+    <div class="modal detail-modal">
+
+        <div class="modal-header">
+
+            <div class="modal-header-left">
+
+                <div class="modal-type-icon" id="detail-icon">
+
+                    <i id="detail-icon-i" class="ti ti-tool" aria-hidden="true"></i>
+
+                </div>
+
+                <div>
+
+                    <div class="modal-title" id="detail-modal-title">Work Order Details</div>
+
+                    <div class="modal-subtitle" id="detail-subtitle">Loading…</div>
+
+                </div>
+
+            </div>
+
+            <button class="close-btn" id="close-detail" aria-label="Close">
+
+                <i class="ti ti-x" aria-hidden="true"></i>
+
+            </button>
+
+        </div>
+
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+
+            <!-- Identity row -->
+
+            <div class="detail-section">
+
+                <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+
+                    <p id="d-wo" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cyan)"></p>
+
+                    <span id="d-status-badge" style="flex-shrink:0"></span>
+
+                </div>
+
+                <div class="detail-grid">
+
+                    <div class="detail-field">
+
+                        <label>Submitted By</label>
+
+                        <p id="d-submitter"></p>
+
+                        <p id="d-email" style="font-size:11px;color:#6b7a8d;margin-top:2px"></p>
+
+                    </div>
+
+                    <div class="detail-field">
+
+                        <label>Submitted</label>
+
+                        <p id="d-submitted"></p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Location row -->
+
+            <div class="detail-section">
+
+                <div class="detail-section-title">Location</div>
+
+                <div class="detail-grid">
+
+                    <div class="detail-field">
+
+                        <label>Building</label>
+
+                        <p id="d-building"></p>
+
+                    </div>
+
+                    <div class="detail-field">
+
+                        <label>Room / Area</label>
+
+                        <p id="d-room"></p>
+
+                    </div>
+
+                    <div class="detail-field" id="d-time-wrap">
+
+                        <label>Time Available</label>
+
+                        <p id="d-time"></p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Request details -->
+
+            <div class="detail-section">
+
+                <div class="detail-section-title">Request Details</div>
+
+                <div class="detail-grid" style="margin-bottom:12px">
+
+                    <div class="detail-field" id="d-purpose-wrap">
+
+                        <label>Purpose</label>
+
+                        <p id="d-purpose"></p>
+
+                    </div>
+
+                    <div class="detail-field" id="d-problem-wrap">
+
+                        <label>Problem Type</label>
+
+                        <p id="d-problem"></p>
+
+                    </div>
+
+                </div>
+
+                <div class="detail-field full">
+
+                    <label>Description</label>
+
+                    <div class="detail-desc" id="d-desc"></div>
+
+                </div>
+
+            </div>
+
+            <!-- Status & priority -->
+
+            <div class="detail-section">
+
+                <div class="detail-section-title">Priority</div>
+
+                <div class="status-row">
+
+                    <span id="d-priority-badge"></span>
+
+                </div>
+
+            </div>
+
+            <!-- Attachment -->
+
+            <div class="detail-section" id="d-attachment-section">
+
+                <div class="detail-section-title">Attachment</div>
+
+                <div class="attachment-thumb" id="d-attachment-wrap">
+
+                    <div class="attachment-placeholder">
+
+                        <i class="ti ti-photo-off" aria-hidden="true"></i>
+
+                        <span>No attachment provided</span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button class="btn btn-ghost" id="close-detail-footer">Close</button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+
      SUCCESS MODAL (hidden until submit)
 
 ============================================================ -->
@@ -1637,31 +1931,223 @@ document.getElementById('success-new').addEventListener('click', function () {
 
 
 
-document.querySelectorAll('.filter-tab').forEach(function (tab) {
+// ── Sort + Filter System ─────────────────────────────────────────────────────
 
-    tab.addEventListener('click', function () {
+const priOrder = { 'Urgent': 0, 'High': 1, 'Mid': 2, 'Low': 3, '': 4 };
+const statusOrder = { 'Pending Approval': 0, 'Approved': 1, 'In Progress': 2, 'Completed': 3, 'Rejected': 4, '': 5 };
 
-        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+let sortCol = null;
+let sortDir = 1; // 1 = asc, -1 = desc
+let activeFilter = 'all';
 
-        this.classList.add('active');
+function getSortValue(row, col) {
+    const d = row.dataset;
+    switch(col) {
+        case 'wo':        return d.wo || '';
+        case 'submitter': return d.submitter || '';
+        case 'type':      return d.type || '';
+        case 'building':  return d.building || '';
+        case 'room':      return d.room || '';
+        case 'problem':   return d.problem || '';
+        case 'priority':  return priOrder[d.priority] !== undefined ? priOrder[d.priority] : 9;
+        case 'status':    return statusOrder[d.status] !== undefined ? statusOrder[d.status] : 9;
+        case 'submitted': return new Date(d.submitted || 0).getTime() || 0;
+        default: return '';
+    }
+}
 
-        const filter = this.dataset.filter;
+function applyTable() {
+    const tbody = document.getElementById('wo-tbody');
+    let rows = Array.from(tbody.querySelectorAll('.wo-row'));
 
-        document.querySelectorAll('.wo-row').forEach(function (row) {
+    // Filter
+    rows.forEach(function(row) {
+        const rf = row.dataset.filter;
+        const show = activeFilter === 'all' || rf === activeFilter;
+        row.style.display = show ? '' : 'none';
+    });
 
-            const status = row.dataset.status;
-
-            if (filter === 'all')            row.style.display = '';
-
-            else if (filter === 'completed') row.style.display = (status === 'completed') ? '' : 'none';
-
-            else                             row.style.display = (status === 'active')    ? '' : 'none';
-
+    // Sort visible rows
+    if (sortCol) {
+        const visible = rows.filter(r => r.style.display !== 'none');
+        visible.sort(function(a, b) {
+            const av = getSortValue(a, sortCol);
+            const bv = getSortValue(b, sortCol);
+            if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sortDir;
+            return String(av).localeCompare(String(bv)) * sortDir;
         });
+        visible.forEach(function(row) { tbody.appendChild(row); });
+    }
+}
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        activeFilter = this.dataset.filter;
+        applyTable();
+    });
+});
+
+// Sortable headers
+document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+        const col = this.dataset.sort;
+        if (sortCol === col) {
+            sortDir *= -1;
+        } else {
+            sortCol = col;
+            sortDir = 1;
+        }
+        // Update header classes
+        document.querySelectorAll('.wo-table th.sortable').forEach(function(h) {
+            h.classList.remove('sort-asc', 'sort-desc');
+            h.querySelector('.sort-icon').textContent = '↕';
+        });
+        this.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+        this.querySelector('.sort-icon').textContent = '';
+        applyTable();
+    });
+});
+
+
+
+// ── Work Order Detail Modal ──────────────────────────────────────────────────
+
+const closedStatuses = ['Completed','Rejected','Closed','Cancelled'];
+
+const priClassMap = {'Low':'pri-low','Mid':'pri-mid','High':'pri-high','Urgent':'pri-urgent'};
+
+const statusClassMap = {
+    'Pending Approval':'badge-pending',
+    'Approved':'badge-approved',
+    'In Progress':'badge-inprogress',
+    'Completed':'badge-completed',
+    'Rejected':'badge-rejected',
+};
+
+document.querySelectorAll('.wo-row').forEach(function(row) {
+
+    row.addEventListener('click', function() {
+
+        const d = this.dataset;
+
+        const isMaint = d.type === 'Maintenance';
+
+        // Icon
+
+        document.getElementById('detail-icon').className = 'modal-type-icon ' + (isMaint ? 'maint' : 'tech');
+
+        document.getElementById('detail-icon-i').className = 'ti ' + (isMaint ? 'ti-tool' : 'ti-device-laptop');
+
+        // Header
+
+        document.getElementById('detail-modal-title').textContent = d.type + ' Request';
+
+        document.getElementById('detail-subtitle').textContent = d.wo;
+
+        // Fields
+
+        document.getElementById('d-wo').textContent        = d.wo;
+
+        document.getElementById('d-submitter').textContent = d.name || d.submitter || '—';
+
+        document.getElementById('d-email').textContent     = d.email || '';
+
+        document.getElementById('d-submitted').textContent = d.submitted || '—';
+
+        document.getElementById('d-building').textContent  = d.building  || '—';
+
+        document.getElementById('d-room').textContent      = d.room      || '—';
+
+        document.getElementById('d-desc').textContent      = d.desc      || '—';
+
+        // Time available (maint only)
+
+        const timeWrap = document.getElementById('d-time-wrap');
+
+        if (d.timeFrom && d.timeTo) {
+
+            document.getElementById('d-time').textContent = d.timeFrom + ' – ' + d.timeTo;
+
+            timeWrap.style.display = '';
+
+        } else {
+
+            timeWrap.style.display = 'none';
+
+        }
+
+        // Purpose / Problem (maint only)
+
+        const purposeWrap = document.getElementById('d-purpose-wrap');
+
+        const problemWrap = document.getElementById('d-problem-wrap');
+
+        if (isMaint) {
+
+            document.getElementById('d-purpose').textContent = d.purpose  || '—';
+
+            document.getElementById('d-problem').textContent = d.problem  || '—';
+
+            purposeWrap.style.display = '';
+
+            problemWrap.style.display = '';
+
+        } else {
+
+            purposeWrap.style.display = 'none';
+
+            problemWrap.style.display = 'none';
+
+        }
+
+        // Priority badge
+
+        const priEl = document.getElementById('d-priority-badge');
+
+        priEl.className = 'pri ' + (priClassMap[d.priority] || 'pri-low');
+
+        priEl.textContent = d.priority || '—';
+
+        // Status badge
+
+        const statusEl = document.getElementById('d-status-badge');
+
+        statusEl.className = 'badge ' + (statusClassMap[d.status] || 'badge-pending');
+
+        statusEl.textContent = d.status || '—';
+
+        // Attachment
+
+        const attachWrap = document.getElementById('d-attachment-wrap');
+
+        if (d.attachment && d.attachment.trim()) {
+
+            attachWrap.innerHTML = '<img src="' + d.attachment + '" alt="Work order attachment">';
+
+        } else {
+
+            attachWrap.innerHTML = '<div class="attachment-placeholder"><i class="ti ti-photo-off" aria-hidden="true"></i><span>No attachment provided</span></div>';
+
+        }
+
+        document.getElementById('detail-overlay').classList.add('open');
 
     });
 
 });
+
+function closeDetailModal() { document.getElementById('detail-overlay').classList.remove('open'); }
+
+document.getElementById('close-detail').addEventListener('click', closeDetailModal);
+
+document.getElementById('close-detail-footer').addEventListener('click', closeDetailModal);
+
+document.getElementById('detail-overlay').addEventListener('click', function(e){ if(e.target===this) closeDetailModal(); });
+
+
 
 </script>
 

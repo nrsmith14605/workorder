@@ -38,7 +38,8 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
     flex-shrink:0;
 }
 .nav-left{display:flex;align-items:center;gap:14px}
-.nav-logo{width:36px;height:36px;background:var(--cyan);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.nav-logo{width:36px;height:36px;background:var(--cyan);border-radius:9px;display:flex;align-items:center;justify-content:center;text-decoration:none;transition:background .15s}
+.nav-logo:hover{background:var(--cyan-dark)}
 .nav-logo i{color:#fff;font-size:19px}
 .nav-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:600;letter-spacing:.02em;color:#1a1a2e}
 .nav-title span{color:var(--cyan)}
@@ -90,7 +91,7 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 
 <nav class="nav">
     <div class="nav-left">
-        <div class="nav-logo"><i class="ti ti-tools" aria-hidden="true"></i></div>
+        <a href="main.php" class="nav-logo" aria-label="Home" title="Home"><i class="ti ti-home" aria-hidden="true"></i></a>
         <div class="nav-title">Warrick County <span>Work Order System</span></div>
     </div>
     <div class="nav-right">
