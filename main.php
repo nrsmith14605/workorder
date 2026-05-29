@@ -128,6 +128,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
 
     if ($stmt->affected_rows) {
         $wo_num = 'WO-' . str_pad($conn->insert_id, 6, '0', STR_PAD_LEFT);
+
+        // ── Send email to Building Tech(s) for technology orders ──────
+        if ($type === 'Technology') {
+            require_once __DIR__ . '/wo_mailer.php';
+            send_tech_wo_email(
+                $conn,
+                $wo_num,
+                $building,
+                $room,
+                $problem_type,
+                $description,
+                $priority,
+                $submitted_name,
+                $user_email
+            );
+        }
+
         echo json_encode(['success' => true, 'wo_num' => $wo_num]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Database error. Please try again.']);
@@ -4062,6 +4079,22 @@ function closeDetailModal() { document.getElementById('detail-overlay').classLis
 document.getElementById('close-detail').addEventListener('click', closeDetailModal);
 document.getElementById('close-detail-footer').addEventListener('click', closeDetailModal);
 document.getElementById('detail-overlay').addEventListener('click', function(e){ if(e.target===this) closeDetailModal(); });
+
+// ── Auto-open WO detail modal from URL ?wo=WO-000001 (email link) ────────────
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const woParam = params.get('wo');
+    if (!woParam) return;
+    const rows = document.querySelectorAll('.wo-row');
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].dataset.wo === woParam) {
+            openDetailModal(rows[i].dataset);
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+        }
+    }
+    alert('Work order ' + woParam + ' was not found or you do not have permission to view it.');
+})();
 
 
 
