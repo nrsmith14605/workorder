@@ -15,11 +15,9 @@ require_once __DIR__ . '/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/phpmailer/src/SMTP.php';
 
 /**
- * Look up every active BT user assigned to $building and email them,
- * then send a confirmation copy to the submitter.
- *
- * Uses FIND_IN_SET() so it works whether building is stored as a single
- * value ("CHS") or a comma-separated list ("CHS,BHS,THS").
+ * Look up every active BT user assigned to $building and email them.
+ * A tech covering multiple buildings just has multiple rows in the
+ * users table (same email, role=BT, different building each row).
  */
 function send_tech_wo_email(
     mysqli $conn,
@@ -34,12 +32,11 @@ function send_tech_wo_email(
 ): void {
 
     // ── 1. Find all active Building Techs for this building ───────────
-    // FIND_IN_SET handles both single ("CHS") and comma-separated ("CHS,BHS") building values
     $stmt = $conn->prepare(
         "SELECT first_name, last_name, email
            FROM users
           WHERE role = 'BT'
-            AND FIND_IN_SET(?, building)
+            AND building = ?
             AND active = 1"
     );
     if (!$stmt) return;
@@ -51,6 +48,8 @@ function send_tech_wo_email(
         $techs[] = $row;
     }
     $stmt->close();
+
+    if (empty($techs)) return;
 
     // ── 2. Priority colors ────────────────────────────────────────────
     $pri_colors = [
@@ -75,20 +74,14 @@ function send_tech_wo_email(
     $pri_safe      = htmlspecialchars($priority);
     $wo_safe       = htmlspecialchars($wo_num);
 
-    // ── 5. Shared HTML body builder ───────────────────────────────────
-    // $header_label controls the banner text (differs for tech vs submitter)
-    $build_html = function(string $header_label) use (
-        $wo_safe, $pri_bg, $pri_text, $pri_safe, $view_url,
-        $building_safe, $room_safe, $problem_safe,
-        $name_safe, $email_safe, $desc_safe
-    ): string {
-        return <<<HTML
+    // ── 5. HTML email ─────────────────────────────────────────────────
+    $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Technology Work Order - {$wo_safe}</title>
+  <title>New Technology Work Order - {$wo_safe}</title>
 </head>
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased">
 
@@ -117,13 +110,6 @@ function send_tech_wo_email(
           </td>
         </tr>
 
-        <!-- LABEL ROW -->
-        <tr>
-          <td style="background:#f0f9fb;padding:12px 36px;border-bottom:1px solid #e8ecf0">
-            <div style="font-size:13px;color:#1a9ab8;font-weight:600">{$header_label}</div>
-          </td>
-        </tr>
-
         <!-- WO NUMBER + PRIORITY -->
         <tr>
           <td style="padding:32px 36px 24px">
@@ -144,7 +130,7 @@ function send_tech_wo_email(
           </td>
         </tr>
 
-        <!-- CTA BUTTON -->
+        <!-- CTA BUTTON — above the details so it's immediately visible -->
         <tr>
           <td style="padding:0 36px 28px" align="center">
             <table cellpadding="0" cellspacing="0" border="0">
@@ -218,71 +204,45 @@ function send_tech_wo_email(
 </body>
 </html>
 HTML;
-    };
 
     // ── 6. Plain-text fallback ────────────────────────────────────────
-    $plain_tech = "NEW TECHNOLOGY WORK ORDER\n"
-                . "==========================\n\n"
-                . "Work Order:   {$wo_num}\n"
-                . "Priority:     {$priority}\n\n"
-                . "Building:     {$building}\n"
-                . "Room:         {$room}\n"
-                . "Problem Type: {$problem_type}\n"
-                . "Submitted By: {$submitted_name} ({$submitted_by})\n\n"
-                . "Description:\n{$description}\n\n"
-                . "View this work order:\n{$view_url}\n\n"
-                . "---\nWarrick County Work Order System (automated — do not reply)";
+    $plain = "NEW TECHNOLOGY WORK ORDER\n"
+           . "==========================\n\n"
+           . "Work Order:   {$wo_num}\n"
+           . "Priority:     {$priority}\n\n"
+           . "Building:     {$building}\n"
+           . "Room:         {$room}\n"
+           . "Problem Type: {$problem_type}\n"
+           . "Submitted By: {$submitted_name} ({$submitted_by})\n\n"
+           . "Description:\n{$description}\n\n"
+           . "View this work order:\n{$view_url}\n\n"
+           . "---\nWarrick County Work Order System (automated — do not reply)";
 
-    $plain_submitter = "YOUR WORK ORDER HAS BEEN SUBMITTED\n"
-                     . "====================================\n\n"
-                     . "Work Order:   {$wo_num}\n"
-                     . "Priority:     {$priority}\n\n"
-                     . "Building:     {$building}\n"
-                     . "Room:         {$room}\n"
-                     . "Problem Type: {$problem_type}\n\n"
-                     . "Description:\n{$description}\n\n"
-                     . "Your request is pending approval. You can view its status here:\n{$view_url}\n\n"
-                     . "---\nWarrick County Work Order System (automated — do not reply)";
-
-    // ── 7. SMTP helper ────────────────────────────────────────────────
-    $make_mailer = function(): PHPMailer {
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'localhost';
-        $mail->SMTPAuth   = false;
-        $mail->SMTPSecure = false;
-        $mail->Port       = 25;
-        $mail->setFrom('wcsc.workorders@chs-cs.com', 'Warrick County Work Order System');
-        $mail->addReplyTo('noreply@chs-cs.com', 'Do Not Reply');
-        $mail->isHTML(true);
-        return $mail;
-    };
-
-    // ── 8. Send to each Building Tech ────────────────────────────────
-    $tech_html = $build_html('New technology work order submitted and awaiting your attention');
+    // ── 7. Send one email per tech ────────────────────────────────────
     foreach ($techs as $tech) {
         try {
-            $mail = $make_mailer();
-            $mail->addAddress($tech['email'], $tech['first_name'] . ' ' . $tech['last_name']);
-            $mail->Subject = 'New Technology Work Order ' . $wo_num;
-            $mail->Body    = $tech_html;
-            $mail->AltBody = $plain_tech;
-            $mail->send();
-        } catch (Exception $e) {
-            error_log("WO Mailer [tech]: failed to send to {$tech['email']} — " . $e->getMessage());
-        }
-    }
+            $mail = new PHPMailer(true);
 
-    // ── 9. Send confirmation to submitter ─────────────────────────────
-    $submitter_html = $build_html('Your work order has been submitted and is pending approval');
-    try {
-        $mail = $make_mailer();
-        $mail->addAddress($submitted_by, $submitted_name);
-        $mail->Subject = 'Work Order Submitted - ' . $wo_num;
-        $mail->Body    = $submitter_html;
-        $mail->AltBody = $plain_submitter;
-        $mail->send();
-    } catch (Exception $e) {
-        error_log("WO Mailer [submitter]: failed to send to {$submitted_by} — " . $e->getMessage());
+            // A2 Hosting local SMTP — no auth or encryption needed
+            $mail->isSMTP();
+            $mail->Host       = 'localhost';
+            $mail->SMTPAuth   = false;
+            $mail->SMTPSecure = false;
+            $mail->Port       = 25;
+
+            $mail->setFrom('wcsc.workorders@chs-cs.com', 'Warrick County Work Order System');
+            $mail->addAddress($tech['email'], $tech['first_name'] . ' ' . $tech['last_name']);
+            $mail->addReplyTo('noreply@chs-cs.com', 'Do Not Reply');
+
+            $mail->isHTML(true);
+            $mail->Subject = 'New Technology Work Order ' . $wo_num;
+            $mail->Body    = $html;
+            $mail->AltBody = $plain;
+
+            $mail->send();
+
+        } catch (Exception $e) {
+            error_log("WO Mailer: failed to send to {$tech['email']} — " . $e->getMessage());
+        }
     }
 }
