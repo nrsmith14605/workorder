@@ -31,24 +31,21 @@ require_once __DIR__ . '/../../wo_config.php';
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 $conn->set_charset('utf8mb4');
 
-// ── Roles that require a building assignment ───────────────
-$building_roles = ['BA','BT','BC','BM'];
-// MD does NOT require a building
-
-// ── Handle POST actions ────────────────────────────────────
+// ── Handle POST actions (add / edit / toggle active) ───────
 $action_msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $act = $_POST['action'] ?? '';
 
+    // ── Add new user ──────────────────────────────────────
     if ($act === 'add') {
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
         $em    = strtolower(trim($_POST['email'] ?? ''));
         $role  = $_POST['role'] ?? 'U';
-        $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
+        $bldg  = in_array($role, ['BA','BT','BC','BM']) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($fn && $ln && $em && in_array($role, ['A','M','BA','BT','BC','BM','MD','U'])) {
+        if ($fn && $ln && $em && in_array($role, ['A','M','BA','BT','BC','BM','U'])) {
             $stmt = $conn->prepare("INSERT INTO users (first_name,last_name,email,role,building) VALUES (?,?,?,?,?)");
             $stmt->bind_param('sssss', $fn, $ln, $em, $role, $bldg);
             $stmt->execute();
@@ -59,14 +56,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // ── Edit existing user ────────────────────────────────
     if ($act === 'edit') {
         $id    = (int)($_POST['user_id'] ?? 0);
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
         $role  = $_POST['role'] ?? 'U';
-        $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
+        $bldg  = in_array($role, ['BA','BT','BC','BM']) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($id && $fn && $ln && in_array($role, ['A','M','BA','BT','BC','BM','MD','U'])) {
+        if ($id && $fn && $ln && in_array($role, ['A','M','BA','BT','BC','BM','U'])) {
             $stmt = $conn->prepare("UPDATE users SET first_name=?,last_name=?,role=?,building=? WHERE id=?");
             $stmt->bind_param('ssssi', $fn, $ln, $role, $bldg, $id);
             $stmt->execute();
@@ -75,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // ── Toggle active/inactive ────────────────────────────
     if ($act === 'toggle') {
         $id = (int)($_POST['user_id'] ?? 0);
         if ($id) {
@@ -103,16 +102,14 @@ $building_groups = [
     'Elementary'     => ['CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','TMS','WEC','YANK'],
 ];
 
-$role_labels = [
-    'A'  => 'Admin',
-    'M'  => 'Manager',
-    'BA' => 'Building Admin',
-    'BT' => 'Building Technician',
-    'BC' => 'Building Custodian',
-    'BM' => 'Building Maintenance',
-    'MD' => 'Maintenance Dept',
-    'U'  => 'User',
-];
+$role_labels = [];
+$role_labels['A']  = 'Admin';
+$role_labels['M']  = 'Manager';
+$role_labels['BA'] = 'Building Admin';
+$role_labels['BT'] = 'Building Technician';
+$role_labels['BC'] = 'Building Custodian';
+$role_labels['BM'] = 'Building Maintenance';
+$role_labels['U']  = 'User';
 
 ?>
 <!DOCTYPE html>
@@ -180,7 +177,6 @@ $role_labels = [
 .badge-bt {background:#dcfce7;color:#166534}
 .badge-bc {background:#fef9c3;color:#854d0e}
 .badge-bm {background:#ffe4e6;color:#9f1239}
-.badge-md {background:#ede9fe;color:#5b21b6}
 .badge-active  {background:#d1fae5;color:#065f46}
 .badge-inactive{background:#fee2e2;color:#991b1b}
 
@@ -265,8 +261,6 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                     <button class="filter-tab" data-role="BT">Building Tech</button>
                     <button class="filter-tab" data-role="BC">Building Custodian</button>
                     <button class="filter-tab" data-role="BM">Building Maintenance</button>
-                    <button class="filter-tab" data-role="MD">Maintenance Dept</button>
-                    <button class="filter-tab" data-role="U">Users</button>
                 </div>
                 <div class="search-wrap">
                     <input type="text" id="user-search" placeholder="Search name or email…">
@@ -363,7 +357,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 $rk = preg_replace('/[^A-Z]/', '', trim($u['role']));
                 $counts[$rk] = ($counts[$rk] ?? 0) + 1;
             }
-            $role_order = ['A','M','BA','BT','BC','BM','MD','U'];
+            $role_order = ['A','M','BA','BT','BC','BM'];
             ?>
             <div class="summary-card">
                 <div class="summary-card-header">User Summary</div>
@@ -430,14 +424,13 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                             <option value="BT">Building Tech</option>
                             <option value="BC">Building Custodian</option>
                             <option value="BM">Building Maintenance</option>
-                            <option value="MD">Maintenance Dept</option>
                             <option value="M">Manager</option>
                             <option value="A">Admin</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Building checkboxes (shown only for building-level roles) -->
+                <!-- Building checkboxes (shown for building-level roles) -->
                 <div class="form-group building-group" id="building-group">
                     <label class="form-label">Building(s) *</label>
                     <div id="building-checkboxes" style="margin-top:6px">
@@ -550,11 +543,9 @@ document.querySelectorAll('.user-row').forEach(r => r._matches = true);
 renderPage();
 
 // ── Building field visibility ─────────────────────────────
-// MD does NOT get a building field — they are corp-wide
-const buildingRoles = ['BA','BT','BC','BM'];
 document.getElementById('f-role').addEventListener('change', function() {
     const bg    = document.getElementById('building-group');
-    const needs = buildingRoles.includes(this.value);
+    const needs = ['BA','BT','BC','BM'].includes(this.value);
     bg.classList.toggle('visible', needs);
 });
 
@@ -579,7 +570,7 @@ document.getElementById('add-user-btn').addEventListener('click', function() {
 // ── Edit user modal ───────────────────────────────────────
 document.querySelectorAll('.edit-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-        const role              = this.dataset.role;
+        const role             = this.dataset.role;
         const assignedBuildings = (this.dataset.building || '').split(',').map(s => s.trim()).filter(Boolean);
         document.getElementById('modal-heading').textContent = 'Edit User';
         document.getElementById('f-action').value   = 'edit';
@@ -588,14 +579,14 @@ document.querySelectorAll('.edit-btn').forEach(function(btn) {
         document.getElementById('f-last').value     = this.dataset.ln;
         document.getElementById('f-email').value    = '';
         document.getElementById('f-email').required = false;
-        document.getElementById('email-group').style.display = 'none';
+        document.getElementById('email-group').style.display = 'none'; // not editable
         document.getElementById('f-role').value     = role;
         document.querySelectorAll('.bldg-checkbox').forEach(cb => {
             cb.checked = assignedBuildings.includes(cb.value);
         });
         document.getElementById('f-building').value = this.dataset.building;
         const bg = document.getElementById('building-group');
-        bg.classList.toggle('visible', buildingRoles.includes(role));
+        bg.classList.toggle('visible', ['BA','BT','BC','BM'].includes(role));
         document.getElementById('user-modal').classList.add('open');
     });
 });

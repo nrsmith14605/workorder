@@ -76,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
         $insert_id = $conn->insert_id;
         $wo_num    = 'WO-' . str_pad($insert_id, 6, '0', STR_PAD_LEFT);
 
+        // Rename uploaded file now that we have the WO number
         if ($photo_path !== null) {
             $ext_final    = pathinfo($photo_path, PATHINFO_EXTENSION);
             $new_filename = $wo_num . '_' . date('Ymd') . '_' . substr(uniqid(), -6) . '.' . $ext_final;
@@ -90,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
             }
         }
 
+        // ── Send email to Building Tech(s) for technology orders ──────
         if ($type === 'Technology') {
             require_once __DIR__ . '/wo_mailer.php';
             send_tech_wo_email(
@@ -116,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
 }
 
 // Role display label and badge color
-$role_labels = ['A' => 'Admin', 'M' => 'Manager', 'BA' => 'Building Admin', 'BT' => 'Building Tech', 'BC' => 'Building Custodian', 'BM' => 'Building Maintenance', 'MD' => 'Maintenance Dept', 'U' => 'User'];
+$role_labels = ['A' => 'Admin', 'M' => 'Manager', 'BA' => 'Building Admin', 'BT' => 'Building Tech', 'BC' => 'Building Custodian', 'BM' => 'Building Maintenance', 'U' => 'User'];
 $role_label  = $role_labels[$user_role] ?? 'User';
 $role_colors = [
     'A'  => 'background:#f3e8ff;color:#6b21a8',
@@ -125,7 +127,6 @@ $role_colors = [
     'BT' => 'background:#dcfce7;color:#166534',
     'BC' => 'background:#fef9c3;color:#854d0e',
     'BM' => 'background:#ffe4e6;color:#9f1239',
-    'MD' => 'background:#ede9fe;color:#5b21b6',
     'U'  => 'background:#f1f5f9;color:#475569',
 ];
 $role_style = $role_colors[$user_role] ?? $role_colors['U'];
@@ -153,6 +154,7 @@ if (in_array($user_role, ['A', 'M'])) {
     while ($row = $res->fetch_assoc()) $orders[] = $row;
     $stmt->close();
 } elseif ($user_role === 'BT') {
+    // BT supports multiple buildings stored as comma-separated string
     $bt_buildings = array_filter(array_map('trim', explode(',', $user_building ?? '')));
     if ($bt_buildings) {
         $placeholders = implode(',', array_fill(0, count($bt_buildings), '?'));
@@ -164,15 +166,9 @@ if (in_array($user_role, ['A', 'M'])) {
         while ($row = $res->fetch_assoc()) $orders[] = $row;
         $stmt->close();
     }
-} elseif (in_array($user_role, ['BM', 'BC', 'MD'])) {
-    // Workers only see orders assigned to them via order_assignments
-    $stmt = $db->prepare(
-        "SELECT o.* FROM orders o
-         INNER JOIN order_assignments oa ON o.id = oa.order_id
-         WHERE oa.user_email = ?
-         ORDER BY o.created_at DESC"
-    );
-    $stmt->bind_param('s', $user_email);
+} elseif (in_array($user_role, ['BM', 'BC'])) {
+    $stmt = $db->prepare("SELECT * FROM orders WHERE building = ? AND type = 'Maintenance' ORDER BY created_at DESC");
+    $stmt->bind_param('s', $user_building);
     $stmt->execute();
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) $orders[] = $row;
@@ -187,27 +183,9 @@ if (in_array($user_role, ['A', 'M'])) {
 }
 $db->close();
 
-// ── Fetch assignable workers for Manager assignment panel ─────
-$assignable_workers = [];
-if (in_array($user_role, ['M', 'A'])) {
-    $db3 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    $db3->set_charset('utf8mb4');
-    $res3 = $db3->query(
-        "SELECT first_name, last_name, email, role, building
-           FROM users
-          WHERE role IN ('MD','BC','BM')
-            AND active = 1
-          ORDER BY
-            FIELD(role,'MD','BC','BM'),
-            last_name, first_name"
-    );
-    if ($res3) while ($row = $res3->fetch_assoc()) $assignable_workers[] = $row;
-    $db3->close();
-}
-
 // ── Notification count for bell badge ────────────────────────
 $notif_count = 0;
-if (in_array($user_role, ['BT', 'BA', 'M', 'A', 'MD', 'BC', 'BM'])) {
+if (in_array($user_role, ['BT', 'BA', 'M', 'A'])) {
     $db2 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     $db2->set_charset('utf8mb4');
     if ($user_role === 'BT') {
@@ -223,29 +201,13 @@ if (in_array($user_role, ['BT', 'BA', 'M', 'A', 'MD', 'BC', 'BM'])) {
             $stmt2->close();
         }
     } elseif ($user_role === 'BA') {
-        $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE building=? AND status IN ('Pending Approval','Approved')");
+        $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE building=? AND status='Approved'");
         $stmt2->bind_param('s', $user_building);
         $stmt2->execute();
         $stmt2->bind_result($notif_count);
         $stmt2->fetch();
         $stmt2->close();
-    } elseif (in_array($user_role, ['MD', 'BC', 'BM'])) {
-        $stmt2 = $db2->prepare(
-            "SELECT COUNT(*) FROM orders o
-             INNER JOIN order_assignments oa ON o.id = oa.order_id
-             WHERE oa.user_email = ? AND o.status = 'In Progress'"
-        );
-        $stmt2->bind_param('s', $user_email);
-        $stmt2->execute();
-        $stmt2->bind_result($notif_count);
-        $stmt2->fetch();
-        $stmt2->close();
-    } elseif ($user_role === 'M') {
-        // Manager sees orders at 'Approved' status — ready for their assignment
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE status = 'Approved'");
-        if ($res2) { [$notif_count] = $res2->fetch_row(); }
-    } elseif ($user_role === 'A') {
-        // Admin sees all actionable orders
+    } elseif (in_array($user_role, ['M', 'A'])) {
         $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE status IN ('Pending Approval','Approved')");
         if ($res2) { [$notif_count] = $res2->fetch_row(); }
     }
@@ -330,7 +292,7 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .pd-item.danger{color:#dc2626}
 .pd-item.danger:hover{background:#fff5f5}
 
-/* nav-links */
+/* nav-links (reserved for future use) */
 .nav-links{display:flex;align-items:center;gap:4px;margin-left:20px}
 .nav-link{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:#6b7a8d;text-decoration:none;transition:all .12s;border:none;background:transparent;cursor:pointer;font-family:'Barlow',sans-serif}
 .nav-link:hover{background:#f0f4f8;color:#1a1a2e}
@@ -532,19 +494,6 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .form-row .form-group{margin-bottom:0}
 .form-spacer{height:16px}
 
-/* ── ASSIGNMENT PANEL ── */
-.assign-search{width:100%;padding:8px 12px;border:1px solid #d0d5dd;border-radius:9px;font-size:13px;font-family:'Barlow',sans-serif;margin-bottom:10px}
-.assign-search:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
-.assign-list{max-height:220px;overflow-y:auto;border:1px solid #e8ecf0;border-radius:9px;background:#fff}
-.assign-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
-.assign-item:last-child{border-bottom:none}
-.assign-item:hover{background:#f0f8fb}
-.assign-item input[type=checkbox]{accent-color:var(--cyan);width:15px;height:15px;flex-shrink:0}
-.assign-item-name{font-size:13px;font-weight:600;color:#1a1a2e}
-.assign-item-meta{font-size:11px;color:#6b7a8d;margin-left:auto}
-.assign-role-group{padding:6px 14px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;background:#f8f9fa;border-bottom:1px solid #f0f4f8}
-.assign-selected-count{font-size:12px;color:var(--cyan-dark);font-weight:600;margin-bottom:8px;min-height:18px}
-
 /* ── DETAIL MODAL ── */
 .detail-modal{max-width:700px}
 .detail-section{margin-bottom:12px}
@@ -609,9 +558,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <?php
             $notif_orders = array_filter($orders, function($o) use ($user_role) {
                 if ($user_role === 'BT') return $o['status'] === 'Pending Approval';
-                if ($user_role === 'BA') return in_array($o['status'], ['Pending Approval', 'Approved']);
-                if ($user_role === 'M')  return $o['status'] === 'Approved';
-                if (in_array($user_role, ['MD','BC','BM'])) return $o['status'] === 'In Progress';
+                if ($user_role === 'BA') return $o['status'] === 'Approved';
                 return in_array($o['status'], ['Pending Approval', 'Approved']);
             });
             if (empty($notif_orders)): ?>
@@ -678,8 +625,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <p>Submit a new work order or check the status of your existing requests.</p>
     </div>
 
-    <!-- Work order type cards — hidden for workers who only act on assigned orders -->
-    <?php if (!in_array($user_role, ['MD', 'BC', 'BM'])): ?>
+    <!-- Work order type cards -->
     <div class="type-cards">
         <div class="type-card" id="card-maint" role="button" tabindex="0" aria-label="Create maintenance work order">
             <div class="type-card-title">
@@ -698,17 +644,14 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <div class="type-card-cta"><i class="ti ti-plus" aria-hidden="true"></i> New technology work order</div>
         </div>
     </div>
-    <?php endif; ?>
 
-    <!-- Work Orders table -->
+    <!-- My Work Orders -->
     <div class="section-head">
-        <h2><?= in_array($user_role, ['MD','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
+        <h2>My Work Orders</h2>
         <div class="filter-tabs">
             <button class="filter-tab active" data-filter="all">All</button>
-            <?php if (!in_array($user_role, ['MD','BC','BM'])): ?>
             <button class="filter-tab" data-filter="Pending Approval">Pending</button>
             <button class="filter-tab" data-filter="Approved">Approved</button>
-            <?php endif; ?>
             <button class="filter-tab" data-filter="In Progress">In Progress</button>
             <button class="filter-tab" data-filter="Completed">Completed</button>
             <button class="filter-tab" data-filter="Rejected">Rejected</button>
@@ -718,17 +661,17 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     <div class="wo-table-wrap">
         <table class="wo-table" id="wo-table">
             <colgroup>
-                <col style="width:7%">
-                <col style="width:10%">
-                <col style="width:8%">
-                <col style="width:7%">
-                <col style="width:9%">
-                <col style="width:17%">
-                <col style="width:9%">
-                <col style="width:10%">
-                <col style="width:6%">
-                <col style="width:9%">
-                <col style="width:8%">
+                <col style="width:7%">   <!-- WO # -->
+                <col style="width:10%">  <!-- Submitted By -->
+                <col style="width:8%">   <!-- Type -->
+                <col style="width:7%">   <!-- Building -->
+                <col style="width:9%">   <!-- Room -->
+                <col style="width:17%">  <!-- Description -->
+                <col style="width:9%">   <!-- Avail Time -->
+                <col style="width:10%">  <!-- Problem Type -->
+                <col style="width:6%">   <!-- Priority -->
+                <col style="width:9%">   <!-- Status -->
+                <col style="width:8%">   <!-- Submitted -->
             </colgroup>
             <thead>
                 <tr>
@@ -828,6 +771,8 @@ if (empty($orders)): ?>
 ============================================================ -->
 <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal" id="modal-box">
+
+        <!-- Header -->
         <div class="modal-header">
             <div class="modal-header-left">
                 <div class="modal-type-icon" id="modal-icon">
@@ -842,15 +787,22 @@ if (empty($orders)): ?>
                 <i class="ti ti-x" aria-hidden="true"></i>
             </button>
         </div>
+
+        <!-- Form body -->
         <div class="modal-body" id="modal-body">
             <form id="wo-form" novalidate>
                 <input type="hidden" id="f-type" name="type" value="">
+
                 <div class="modal-cols">
+
+                    <!-- ═══ LEFT COLUMN ═══ -->
                     <div class="modal-col-left">
+
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label">Your email</label>
                             <input type="email" value="<?= htmlspecialchars($user_email) ?>" readonly>
                         </div>
+
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label" for="f-building">Building *</label>
                             <select id="f-building" name="building" required>
@@ -877,10 +829,13 @@ if (empty($orders)): ?>
                                 </optgroup>
                             </select>
                         </div>
+
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label" for="f-room">Room / Location *</label>
                             <input type="text" id="f-room" name="room" placeholder="e.g. Room 214, Main Gym" required>
                         </div>
+
+                        <!-- Maintenance-only: Time Available -->
                         <div class="form-group" id="field-time" style="margin-bottom:14px">
                             <label class="form-label">
                                 <i class="ti ti-clock" style="font-size:11px;vertical-align:middle;margin-right:3px" aria-hidden="true"></i>
@@ -889,74 +844,125 @@ if (empty($orders)): ?>
                             <div class="time-range-wrap">
                                 <select id="f-time-from" name="time_from">
                                     <option value="">From…</option>
-                                    <option>7:00 AM</option><option>8:00 AM</option><option>9:00 AM</option>
-                                    <option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option>
-                                    <option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option>
-                                    <option>4:00 PM</option><option>After 4:00 PM</option>
+                                    <option>7:00 AM</option>
+                                    <option>8:00 AM</option>
+                                    <option>9:00 AM</option>
+                                    <option>10:00 AM</option>
+                                    <option>11:00 AM</option>
+                                    <option>12:00 PM</option>
+                                    <option>1:00 PM</option>
+                                    <option>2:00 PM</option>
+                                    <option>3:00 PM</option>
+                                    <option>4:00 PM</option>
+                                    <option>After 4:00 PM</option>
                                 </select>
                                 <span class="time-range-sep">to</span>
                                 <select id="f-time-to" name="time_to">
                                     <option value="">To…</option>
-                                    <option>7:00 AM</option><option>8:00 AM</option><option>9:00 AM</option>
-                                    <option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option>
-                                    <option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option>
-                                    <option>4:00 PM</option><option>After 4:00 PM</option>
+                                    <option>7:00 AM</option>
+                                    <option>8:00 AM</option>
+                                    <option>9:00 AM</option>
+                                    <option>10:00 AM</option>
+                                    <option>11:00 AM</option>
+                                    <option>12:00 PM</option>
+                                    <option>1:00 PM</option>
+                                    <option>2:00 PM</option>
+                                    <option>3:00 PM</option>
+                                    <option>4:00 PM</option>
+                                    <option>After 4:00 PM</option>
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Maintenance-only: Purpose -->
                         <div class="form-group maint-only hidden" id="field-purpose" style="margin-bottom:14px">
                             <label class="form-label" for="f-purpose">Purpose *</label>
                             <select id="f-purpose" name="purpose">
                                 <option value="">Select purpose…</option>
-                                <option>Event Setup</option><option>General Custodial</option>
-                                <option>General Grounds</option><option>General Maintenance</option>
-                                <option>Preventative Maintenance</option><option>Vandalism</option>
+                                <option>Event Setup</option>
+                                <option>General Custodial</option>
+                                <option>General Grounds</option>
+                                <option>General Maintenance</option>
+                                <option>Preventative Maintenance</option>
+                                <option>Vandalism</option>
                             </select>
                         </div>
+
+                        <!-- Problem Type (shared, optgroups switch by type) -->
                         <div class="form-group maint-only hidden" id="field-problem">
                             <label class="form-label" for="f-problem-type">Problem Type *</label>
                             <select id="f-problem-type" name="problem_type">
                                 <option value="">- Select Problem Type -</option>
                                 <optgroup label="Maintenance" class="maint-opts">
-                                    <option>Cabling</option><option>Carpentry</option><option>Ceiling</option>
-                                    <option>Clocks/Bells</option><option>Custodial</option>
-                                    <option>Doors and Hardware</option><option>Electrical</option>
-                                    <option>Equipment Maintenance</option><option>Event Setup</option>
-                                    <option>Flooring</option><option>General Maintenance</option>
-                                    <option>Glass/Window Repairs</option><option>Grounds</option>
-                                    <option>Hazmat/Waste</option><option>Heating and Cooling</option>
-                                    <option>Installation</option><option>Keys and Locks</option>
-                                    <option>Lighting</option><option>Moving</option><option>Mowing</option>
-                                    <option>Painting</option><option>Pest Control</option>
-                                    <option>Plumbing</option><option>Pool</option>
-                                    <option>Supplies/Equipment</option><option value="Other">Other</option>
+                                    <option>Cabling</option>
+                                    <option>Carpentry</option>
+                                    <option>Ceiling</option>
+                                    <option>Clocks/Bells</option>
+                                    <option>Custodial</option>
+                                    <option>Doors and Hardware</option>
+                                    <option>Electrical</option>
+                                    <option>Equipment Maintenance</option>
+                                    <option>Event Setup</option>
+                                    <option>Flooring</option>
+                                    <option>General Maintenance</option>
+                                    <option>Glass/Window Repairs</option>
+                                    <option>Grounds</option>
+                                    <option>Hazmat/Waste</option>
+                                    <option>Heating and Cooling</option>
+                                    <option>Installation</option>
+                                    <option>Keys and Locks</option>
+                                    <option>Lighting</option>
+                                    <option>Moving</option>
+                                    <option>Mowing</option>
+                                    <option>Painting</option>
+                                    <option>Pest Control</option>
+                                    <option>Plumbing</option>
+                                    <option>Pool</option>
+                                    <option>Supplies/Equipment</option>
+                                    <option value="Other">Other</option>
                                 </optgroup>
                                 <optgroup label="Technology" class="tech-opts">
-                                    <option>Admin Cell Phone</option><option>Audio/Visual</option>
-                                    <option>Chromebook</option><option>Desktop</option>
-                                    <option>Email</option><option>Event Setup</option>
-                                    <option>Filewave</option><option>Interactive White Board</option>
-                                    <option>Internet Connection</option><option>Internet Filter</option>
-                                    <option>iPad</option><option>Laptop</option>
-                                    <option>Miscellaneous/Questions (IT)</option><option>Mouse</option>
-                                    <option>Other</option><option>Password/login</option>
-                                    <option>Printers</option><option>Projector</option>
-                                    <option>Server</option><option>Software Application</option>
-                                    <option>Synergy</option><option>Telephone</option>
-                                    <option>Virus</option><option>WCSC Website</option>
+                                    <option>Admin Cell Phone</option>
+                                    <option>Audio/Visual</option>
+                                    <option>Chromebook</option>
+                                    <option>Desktop</option>
+                                    <option>Email</option>
+                                    <option>Event Setup</option>
+                                    <option>Filewave</option>
+                                    <option>Interactive White Board</option>
+                                    <option>Internet Connection</option>
+                                    <option>Internet Filter</option>
+                                    <option>iPad</option>
+                                    <option>Laptop</option>
+                                    <option>Miscellaneous/Questions (IT)</option>
+                                    <option>Mouse</option>
+                                    <option>Other</option>
+                                    <option>Password/login</option>
+                                    <option>Printers</option>
+                                    <option>Projector</option>
+                                    <option>Server</option>
+                                    <option>Software Application</option>
+                                    <option>Synergy</option>
+                                    <option>Telephone</option>
+                                    <option>Virus</option>
+                                    <option>WCSC Website</option>
                                 </optgroup>
                             </select>
                             <div class="other-problem-wrap" id="other-problem-wrap">
                                 <input type="text" id="f-problem-other" name="problem_other" placeholder="Please describe the problem type…">
                             </div>
                         </div>
+
                     </div><!-- /modal-col-left -->
 
+                    <!-- ═══ RIGHT COLUMN ═══ -->
                     <div class="modal-col-right">
+
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label" for="f-desc">Description *</label>
                             <textarea id="f-desc" name="description" style="min-height:185px" placeholder="Describe the issue in detail — what needs to be done, where exactly, and any relevant context…" required></textarea>
                         </div>
+
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label">Priority *</label>
                             <div class="priority-group">
@@ -967,6 +973,7 @@ if (empty($orders)): ?>
                             </div>
                             <input type="hidden" id="f-priority" name="priority" value="">
                         </div>
+
                         <div class="form-group">
                             <label class="form-label">Photo (optional)</label>
                             <div class="upload-zone" id="upload-zone">
@@ -976,16 +983,22 @@ if (empty($orders)): ?>
                             </div>
                             <input type="file" id="f-photo" name="photo" accept="image/*" style="display:none">
                         </div>
+
                     </div><!-- /modal-col-right -->
+
                 </div><!-- /modal-cols -->
+
             </form>
         </div>
+
+        <!-- Footer -->
         <div class="modal-footer" id="modal-footer">
             <button class="btn btn-ghost" id="cancel-modal">Cancel</button>
             <button class="btn btn-primary" id="submit-wo">
                 <i class="ti ti-send" aria-hidden="true"></i> Submit Work Order
             </button>
         </div>
+
     </div>
 </div>
 
@@ -1010,6 +1023,7 @@ if (empty($orders)): ?>
         </div>
         <div class="modal-body" style="max-height:75vh;overflow-y:auto">
 
+            <!-- Identity row -->
             <div class="detail-section">
                 <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
                     <p id="d-wo" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cyan)"></p>
@@ -1031,6 +1045,7 @@ if (empty($orders)): ?>
                 </div>
             </div>
 
+            <!-- Location row -->
             <div class="detail-section">
                 <div class="detail-section-title">Location</div>
                 <div class="detail-grid">
@@ -1049,6 +1064,7 @@ if (empty($orders)): ?>
                 </div>
             </div>
 
+            <!-- Request details -->
             <div class="detail-section">
                 <div class="detail-section-title">Request Details</div>
                 <div class="detail-grid" style="margin-bottom:12px">
@@ -1085,23 +1101,13 @@ if (empty($orders)): ?>
             </div>
 
         </div>
-
-        <!-- Assignment panel — shown to M/A when status is Approved -->
-        <div id="assign-panel" style="display:none;padding:14px 24px 0;border-top:1px solid #f0f4f8;background:#fafafa">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:8px">Assign To</div>
-            <div class="assign-selected-count" id="assign-count"></div>
-            <input type="text" class="assign-search" id="assign-search" placeholder="Search workers…">
-            <div class="assign-list" id="assign-list"></div>
-        </div>
-
-        <!-- Action panel -->
+        <!-- Action panel — shown to BT/BA based on role+status -->
         <div id="action-panel" style="display:none;padding:16px 24px;border-top:1px solid #f0f4f8;background:#fafafa">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:10px">Add Note (optional)</div>
             <textarea id="action-note" rows="3" placeholder="Add a note to be included with this action…" style="width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Barlow',sans-serif;resize:vertical;margin-bottom:12px"></textarea>
             <div id="action-buttons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
             <div id="action-msg" style="font-size:12px;margin-top:10px;display:none"></div>
         </div>
-
         <div class="modal-footer">
             <button class="btn btn-ghost" id="close-detail-footer">Close</button>
         </div>
@@ -1140,9 +1146,6 @@ if (empty($orders)): ?>
 
 const USER_EMAIL = '<?= htmlspecialchars($user_email, ENT_QUOTES) ?>';
 const USER_NAME  = '<?= htmlspecialchars($submitted_name, ENT_QUOTES) ?>';
-const USER_ROLE  = '<?= htmlspecialchars($user_role, ENT_QUOTES) ?>';
-const ROLE_LABEL = '<?= htmlspecialchars($role_label, ENT_QUOTES) ?>';
-const ASSIGNABLE_WORKERS = <?= json_encode($assignable_workers) ?>;
 
 // ── Profile dropdown ──────────────────────────────────────────
 const avatarBtn = document.getElementById('avatar-btn');
@@ -1169,6 +1172,7 @@ if (notifBtn) {
     document.addEventListener('click', function(e) {
         if (!notifDd.contains(e.target) && e.target !== notifBtn) notifDd.classList.remove('open');
     });
+    // Clicking a notification item opens that WO's detail modal
     document.querySelectorAll('.notif-item').forEach(function(item) {
         item.addEventListener('click', function() {
             notifDd.classList.remove('open');
@@ -1184,11 +1188,9 @@ if (notifBtn) {
     });
 }
 
-// ── Open WO form modal ────────────────────────────────────────
-const cardMaint = document.getElementById('card-maint');
-const cardTech  = document.getElementById('card-tech');
-if (cardMaint) cardMaint.addEventListener('click', function() { openModal('Maintenance'); });
-if (cardTech)  cardTech.addEventListener('click',  function() { openModal('Technology');  });
+// ── Open WO modal ─────────────────────────────────────────────
+document.getElementById('card-maint').addEventListener('click', function() { openModal('Maintenance'); });
+document.getElementById('card-tech').addEventListener('click', function() { openModal('Technology');  });
 
 function openModal(type) {
     document.getElementById('f-type').value = type;
@@ -1202,7 +1204,11 @@ function openModal(type) {
     document.getElementById('upload-label').textContent = 'Click or drag a photo here';
     document.getElementById('upload-zone').classList.remove('has-file');
     document.getElementById('upload-icon').className = 'ti ti-photo-up';
-    document.querySelectorAll('.maint-only').forEach(function(el) { el.classList.remove('hidden'); });
+
+    // Show/hide maintenance-only fields
+    document.querySelectorAll('.maint-only').forEach(function(el) {
+        el.classList.remove('hidden');
+    });
     document.getElementById('field-time').classList.remove('hidden');
     document.getElementById('field-purpose').classList.toggle('hidden', !isMaint);
     document.getElementById('field-problem').classList.remove('hidden');
@@ -1210,18 +1216,18 @@ function openModal(type) {
     document.getElementById('f-problem-type').value = '';
     document.querySelector('.maint-opts').style.display = isMaint ? '' : 'none';
     document.querySelector('.tech-opts').style.display  = isMaint ? 'none' : '';
+
+    // Reset other-problem field
     document.getElementById('other-problem-wrap').classList.remove('visible');
     document.getElementById('f-problem-other').value = '';
+
     document.getElementById('modal-overlay').classList.add('open');
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
-const closeModalBtn = document.getElementById('close-modal');
-const cancelModalBtn = document.getElementById('cancel-modal');
-if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
-const modalOverlay = document.getElementById('modal-overlay');
-if (modalOverlay) modalOverlay.addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('close-modal').addEventListener('click', closeModal);
+document.getElementById('cancel-modal').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
 // ── Priority pills ────────────────────────────────────────────
 document.querySelectorAll('.pri-pill').forEach(function(pill) {
@@ -1237,97 +1243,123 @@ const uploadZone  = document.getElementById('upload-zone');
 const fileInput   = document.getElementById('f-photo');
 const uploadLabel = document.getElementById('upload-label');
 const uploadIcon  = document.getElementById('upload-icon');
-if (uploadZone) {
-    uploadZone.addEventListener('click', function () { fileInput.click(); });
-    fileInput.addEventListener('change', function () { if (this.files[0]) setUploadedFile(this.files[0]); });
-    uploadZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); this.classList.add('drag-over'); });
-    uploadZone.addEventListener('dragleave', function (e) { e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over'); });
-    uploadZone.addEventListener('drop', function (e) {
-        e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) { const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files; setUploadedFile(file); }
-    });
-}
+uploadZone.addEventListener('click', function () { fileInput.click(); });
+
+fileInput.addEventListener('change', function () {
+    if (this.files[0]) setUploadedFile(this.files[0]);
+});
+
+uploadZone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.remove('drag-over');
+});
+
+uploadZone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        setUploadedFile(file);
+    }
+});
 function setUploadedFile(file) {
     uploadLabel.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
     uploadZone.classList.add('has-file');
     uploadIcon.className = 'ti ti-circle-check';
 }
 
-// ── Problem Type → "Other" field ──────────────────────────────
-const problemTypeEl = document.getElementById('f-problem-type');
-if (problemTypeEl) {
-    problemTypeEl.addEventListener('change', function() {
-        const wrap = document.getElementById('other-problem-wrap');
-        wrap.classList.toggle('visible', this.value === 'Other');
-        if (this.value !== 'Other') document.getElementById('f-problem-other').value = '';
-    });
-}
+// ── Problem Type → "Other" text field ────────────────────────
+document.getElementById('f-problem-type').addEventListener('change', function() {
+    const wrap = document.getElementById('other-problem-wrap');
+    wrap.classList.toggle('visible', this.value === 'Other');
+    if (this.value !== 'Other') document.getElementById('f-problem-other').value = '';
+});
 
 // ── Submit work order ─────────────────────────────────────────
-const submitWoBtn = document.getElementById('submit-wo');
-if (submitWoBtn) {
-    submitWoBtn.addEventListener('click', function() {
-        const building = document.getElementById('f-building').value;
-        const room     = document.getElementById('f-room').value.trim();
-        const priority = document.getElementById('f-priority').value;
-        const desc     = document.getElementById('f-desc').value.trim();
-        const isMaint  = document.getElementById('f-type').value === 'Maintenance';
-        if (!building || !room || !priority || !desc) {
-            alert('Please fill in all required fields: building, room/location, priority, and description.');
-            return;
-        }
-        const purpose = isMaint ? document.getElementById('f-purpose').value : 'Technology';
-        const problem = document.getElementById('f-problem-type').value;
-        if (isMaint && !purpose) { alert('Please select a Purpose.'); return; }
-        if (!problem) { alert('Please select a Problem Type.'); return; }
-        if (problem === 'Other' && !document.getElementById('f-problem-other').value.trim()) {
-            alert('Please describe the problem type in the "Other" field.'); return;
-        }
-        const submitBtn = document.getElementById('submit-wo');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="ti ti-loader" aria-hidden="true"></i> Submitting…';
-        const formData = new FormData(document.getElementById('wo-form'));
-        formData.append('action', 'submit_wo');
-        const photoFile = document.getElementById('f-photo').files[0];
-        if (photoFile) formData.set('photo', photoFile);
-        const newType     = document.getElementById('f-type').value;
-        const newBuilding = document.getElementById('f-building').value;
-        const newRoom     = document.getElementById('f-room').value.trim();
-        const newDesc     = document.getElementById('f-desc').value.trim();
-        const newTimeFrom = document.getElementById('f-time-from').value;
-        const newTimeTo   = document.getElementById('f-time-to').value;
-        const newPurpose  = isMaint ? document.getElementById('f-purpose').value : 'Technology';
-        const newProblem  = document.getElementById('f-problem-type').value;
-        const newPriority = document.getElementById('f-priority').value;
-        fetch('', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(function(data) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
-                if (data.success) {
-                    document.getElementById('success-wo-num').textContent = data.wo_num;
-                    injectNewRow({ wo: data.wo_num, type: newType, building: newBuilding, room: newRoom,
-                        desc: newDesc, timeFrom: newTimeFrom, timeTo: newTimeTo, purpose: newPurpose,
-                        problem: newProblem, priority: newPriority, attachment: data.photo_path || '' });
-                    closeModal();
-                    document.getElementById('success-overlay').classList.add('open');
-                } else {
-                    alert(data.message || 'Submission failed. Please try again.');
-                }
-            })
-            .catch(function() {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
-                alert('Network error. Please check your connection and try again.');
-            });
-    });
-}
+document.getElementById('submit-wo').addEventListener('click', function() {
+    const building = document.getElementById('f-building').value;
+    const room     = document.getElementById('f-room').value.trim();
+    const priority = document.getElementById('f-priority').value;
+    const desc     = document.getElementById('f-desc').value.trim();
+    const isMaint  = document.getElementById('f-type').value === 'Maintenance';
 
-const successBackBtn = document.getElementById('success-back');
-const successNewBtn  = document.getElementById('success-new');
-if (successBackBtn) successBackBtn.addEventListener('click', function() { document.getElementById('success-overlay').classList.remove('open'); });
-if (successNewBtn)  successNewBtn.addEventListener('click', function() {
+    if (!building || !room || !priority || !desc) {
+        alert('Please fill in all required fields: building, room/location, priority, and description.');
+        return;
+    }
+    const purpose = isMaint ? document.getElementById('f-purpose').value : 'Technology';
+    const problem = document.getElementById('f-problem-type').value;
+    if (isMaint && !purpose) { alert('Please select a Purpose.'); return; }
+    if (!problem) { alert('Please select a Problem Type.'); return; }
+    if (problem === 'Other' && !document.getElementById('f-problem-other').value.trim()) {
+        alert('Please describe the problem type in the "Other" field.'); return;
+    }
+
+    const submitBtn = document.getElementById('submit-wo');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="ti ti-loader" aria-hidden="true"></i> Submitting…';
+
+    const formData = new FormData(document.getElementById('wo-form'));
+    formData.append('action', 'submit_wo');
+    const photoFile = document.getElementById('f-photo').files[0];
+    if (photoFile) formData.set('photo', photoFile);
+
+    const newType     = document.getElementById('f-type').value;
+    const newBuilding = document.getElementById('f-building').value;
+    const newRoom     = document.getElementById('f-room').value.trim();
+    const newDesc     = document.getElementById('f-desc').value.trim();
+    const newTimeFrom = document.getElementById('f-time-from').value;
+    const newTimeTo   = document.getElementById('f-time-to').value;
+    const newPurpose  = isMaint ? document.getElementById('f-purpose').value : 'Technology';
+    const newProblem  = document.getElementById('f-problem-type').value;
+    const newPriority = document.getElementById('f-priority').value;
+
+    fetch('', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(function(data) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
+            if (data.success) {
+                document.getElementById('success-wo-num').textContent = data.wo_num;
+                injectNewRow({
+                    wo:         data.wo_num,
+                    type:       newType,
+                    building:   newBuilding,
+                    room:       newRoom,
+                    desc:       newDesc,
+                    timeFrom:   newTimeFrom,
+                    timeTo:     newTimeTo,
+                    purpose:    newPurpose,
+                    problem:    newProblem,
+                    priority:   newPriority,
+                    attachment: data.photo_path || ''
+                });
+                closeModal();
+                document.getElementById('success-overlay').classList.add('open');
+            } else {
+                alert(data.message || 'Submission failed. Please try again.');
+            }
+        })
+        .catch(function() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
+            alert('Network error. Please check your connection and try again.');
+        });
+});
+
+document.getElementById('success-back').addEventListener('click', function() { document.getElementById('success-overlay').classList.remove('open'); });
+document.getElementById('success-new').addEventListener('click', function() {
     document.getElementById('success-overlay').classList.remove('open');
     openModal(document.getElementById('f-type').value || 'Maintenance');
 });
@@ -1358,11 +1390,13 @@ function getSortValue(row, col) {
 function applyTable() {
     const tbody = document.getElementById('wo-tbody');
     let rows = Array.from(tbody.querySelectorAll('.wo-row'));
+
     rows.forEach(function(row) {
         const rf = row.dataset.filter;
         const show = activeFilter === 'all' || rf === activeFilter;
         row.style.display = show ? '' : 'none';
     });
+
     if (sortCol) {
         const visible = rows.filter(r => r.style.display !== 'none');
         visible.sort(function(a, b) {
@@ -1375,6 +1409,7 @@ function applyTable() {
     }
 }
 
+// Filter tabs
 document.querySelectorAll('.filter-tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
         document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
@@ -1384,10 +1419,16 @@ document.querySelectorAll('.filter-tab').forEach(function(tab) {
     });
 });
 
+// Sortable headers
 document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
     th.addEventListener('click', function() {
         const col = this.dataset.sort;
-        if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
+        if (sortCol === col) {
+            sortDir *= -1;
+        } else {
+            sortCol = col;
+            sortDir = 1;
+        }
         document.querySelectorAll('.wo-table th.sortable').forEach(function(h) {
             h.classList.remove('sort-asc', 'sort-desc');
             h.querySelector('.sort-icon').textContent = '↕';
@@ -1399,6 +1440,7 @@ document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
 });
 
 // ── Work Order Detail Modal ───────────────────────────────────
+const closedStatuses = ['Completed','Rejected','Closed','Cancelled'];
 const priClassMap = {'Low':'pri-low','Mid':'pri-mid','High':'pri-high','Urgent':'pri-urgent'};
 const statusClassMap = {
     'Pending Approval':'badge-pending',
@@ -1408,7 +1450,8 @@ const statusClassMap = {
     'Rejected':'badge-rejected',
 };
 
-function inArrJS(arr, val) { return arr.indexOf(val) !== -1; }
+const USER_ROLE = '<?= htmlspecialchars($user_role, ENT_QUOTES) ?>';
+const ROLE_LABEL = '<?= htmlspecialchars($role_label, ENT_QUOTES) ?>';
 
 function openDetailModal(d) {
     const isMaint = d.type === 'Maintenance';
@@ -1427,14 +1470,20 @@ function openDetailModal(d) {
     if (d.timeFrom && d.timeTo) {
         document.getElementById('d-time').textContent = d.timeFrom + ' – ' + d.timeTo;
         timeWrap.style.display = '';
-    } else { timeWrap.style.display = 'none'; }
+    } else {
+        timeWrap.style.display = 'none';
+    }
     const purposeWrap = document.getElementById('d-purpose-wrap');
     const problemWrap = document.getElementById('d-problem-wrap');
     if (isMaint) {
         document.getElementById('d-purpose').textContent = d.purpose || '—';
         document.getElementById('d-problem').textContent = d.problem || '—';
-        purposeWrap.style.display = ''; problemWrap.style.display = '';
-    } else { purposeWrap.style.display = 'none'; problemWrap.style.display = 'none'; }
+        purposeWrap.style.display = '';
+        problemWrap.style.display = '';
+    } else {
+        purposeWrap.style.display = 'none';
+        problemWrap.style.display = 'none';
+    }
     const priEl = document.getElementById('d-priority-badge');
     priEl.className   = 'pri ' + (priClassMap[d.priority] || 'pri-low');
     priEl.textContent = d.priority || '—';
@@ -1447,19 +1496,20 @@ function openDetailModal(d) {
     } else {
         attachWrap.innerHTML = '<div class="attachment-placeholder"><i class="ti ti-photo-off" aria-hidden="true"></i><span>No attachment provided</span></div>';
     }
-
     // Notes / activity log
     const notesSection = document.getElementById('d-notes-section');
     const notesEl = document.getElementById('d-notes');
     if (d.notes && d.notes.trim()) {
         notesEl.textContent = d.notes.trim();
         notesSection.style.display = '';
-    } else { notesSection.style.display = 'none'; }
+    } else {
+        notesSection.style.display = 'none';
+    }
 
     // Action panel — build role+status-aware buttons
-    const panel     = document.getElementById('action-panel');
-    const btnWrap   = document.getElementById('action-buttons');
-    const noteTA    = document.getElementById('action-note');
+    const panel   = document.getElementById('action-panel');
+    const btnWrap = document.getElementById('action-buttons');
+    const noteTA  = document.getElementById('action-note');
     const actionMsg = document.getElementById('action-msg');
     noteTA.value  = '';
     actionMsg.style.display = 'none';
@@ -1474,72 +1524,31 @@ function openDetailModal(d) {
         { label: '↑ Approve → Manager', action: 'ba_approve', cls: 'btn-primary' },
         { label: '✕ Reject',            action: 'ba_reject',  cls: 'btn-danger'  },
     ];
-    const mActions = [
-        { label: '✓ Mark Completed', action: 'm_complete', cls: 'btn-success' },
-        { label: '✕ Reject',         action: 'm_reject',   cls: 'btn-danger'  },
-    ];
-    const workerActions = [
-        { label: '✓ Mark Completed', action: 'worker_complete', cls: 'btn-success' },
-    ];
 
-    let actions    = [];
-    let showAssign = false;
+    let actions = [];
     if (USER_ROLE === 'BT' && d.status === 'Pending Approval') actions = btActions;
-    // BA sees actions on Pending Approval for Maintenance (no BT in chain)
-    // and on Approved for Technology (BT already approved it)
-    if (USER_ROLE === 'BA' && d.status === 'Approved')                                    actions = baActions;
-    if (USER_ROLE === 'BA' && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = baActions;
-    if (USER_ROLE === 'M'  && d.status === 'Approved')         { actions = mActions; showAssign = true; }
-    if (USER_ROLE === 'M'  && d.status === 'In Progress')      actions = mActions;
-    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = baActions;
-    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Technology')  actions = btActions;
-    if (USER_ROLE === 'A'  && d.status === 'Approved')         { actions = mActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'In Progress')      actions = mActions;
-    if (inArrJS(['MD','BC','BM'], USER_ROLE) && d.status === 'In Progress') actions = workerActions;
-
-    // Assignment panel
-    const assignPanel = document.getElementById('assign-panel');
-    if (showAssign && ASSIGNABLE_WORKERS.length > 0) {
-        assignPanel.style.display = '';
-        buildAssignPanel();
-    } else {
-        assignPanel.style.display = 'none';
-    }
+    if (USER_ROLE === 'BA' && d.status === 'Approved')         actions = baActions;
+    if ((USER_ROLE === 'M' || USER_ROLE === 'A') && d.status === 'Pending Approval') actions = btActions;
+    if ((USER_ROLE === 'M' || USER_ROLE === 'A') && d.status === 'Approved')         actions = baActions;
 
     if (actions.length > 0) {
         panel.style.display = '';
-        const styles = {
-            'btn-primary': 'background:var(--cyan);color:#fff',
-            'btn-success': 'background:#059669;color:#fff',
-            'btn-danger':  'background:#dc2626;color:#fff',
-        };
         actions.forEach(function(a) {
             const btn = document.createElement('button');
+            btn.className = 'btn ' + (a.cls === 'btn-success' ? '' : '') ;
+            // Map cls to inline style
+            const styles = {
+                'btn-primary': 'background:var(--cyan);color:#fff',
+                'btn-success': 'background:#059669;color:#fff',
+                'btn-danger':  'background:#dc2626;color:#fff',
+            };
             btn.setAttribute('style', 'padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Barlow\',sans-serif;border:none;' + (styles[a.cls] || ''));
             btn.textContent = a.label;
             btn.addEventListener('click', function() {
-                submitAction(d.id, a.action, noteTA.value.trim(), btn, actionMsg, d, null);
+                submitAction(d.id, a.action, noteTA.value.trim(), btn, actionMsg, d);
             });
             btnWrap.appendChild(btn);
         });
-        // Assign & Start button (only when showAssign)
-        if (showAssign) {
-            const assignBtn = document.createElement('button');
-            assignBtn.setAttribute('style', 'padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Barlow\',sans-serif;border:none;background:#7c3aed;color:#fff');
-            assignBtn.textContent = '→ Assign & Start';
-            assignBtn.addEventListener('click', function() {
-                const checked = Array.from(document.querySelectorAll('.assign-checkbox:checked'));
-                if (checked.length === 0) {
-                    actionMsg.style.display = '';
-                    actionMsg.style.color = '#dc2626';
-                    actionMsg.textContent = 'Please select at least one worker to assign.';
-                    return;
-                }
-                const assignees = checked.map(cb => ({ email: cb.dataset.email, name: cb.dataset.name }));
-                submitAction(d.id, 'm_assign', noteTA.value.trim(), assignBtn, actionMsg, d, assignees);
-            });
-            btnWrap.appendChild(assignBtn);
-        }
     } else {
         panel.style.display = 'none';
     }
@@ -1547,53 +1556,7 @@ function openDetailModal(d) {
     document.getElementById('detail-overlay').classList.add('open');
 }
 
-function buildAssignPanel() {
-    const list    = document.getElementById('assign-list');
-    const search  = document.getElementById('assign-search');
-    const counter = document.getElementById('assign-count');
-    const roleLabels = { MD: 'Maintenance Dept', BC: 'Building Custodian', BM: 'Building Maintenance' };
-    const groups     = { MD: [], BC: [], BM: [] };
-    ASSIGNABLE_WORKERS.forEach(function(w) { if (groups[w.role]) groups[w.role].push(w); });
-
-    function render(filter) {
-        list.innerHTML = '';
-        const f = (filter || '').toLowerCase();
-        ['MD','BC','BM'].forEach(function(role) {
-            const workers = groups[role].filter(function(w) {
-                return !f || (w.first_name + ' ' + w.last_name).toLowerCase().includes(f);
-            });
-            if (!workers.length) return;
-            const grpHdr = document.createElement('div');
-            grpHdr.className = 'assign-role-group';
-            grpHdr.textContent = roleLabels[role];
-            list.appendChild(grpHdr);
-            workers.forEach(function(w) {
-                const item = document.createElement('label');
-                item.className = 'assign-item';
-                const meta = (role !== 'MD' && w.building) ? w.building : 'Corp-wide';
-                item.innerHTML =
-                    '<input type="checkbox" class="assign-checkbox" data-email="' + w.email + '" data-name="' + w.first_name + ' ' + w.last_name + '">' +
-                    '<span class="assign-item-name">' + w.first_name + ' ' + w.last_name + '</span>' +
-                    '<span class="assign-item-meta">' + meta + '</span>';
-                item.querySelector('input').addEventListener('change', updateCount);
-                list.appendChild(item);
-            });
-        });
-    }
-
-    function updateCount() {
-        const n = document.querySelectorAll('.assign-checkbox:checked').length;
-        counter.textContent = n > 0 ? n + ' selected' : '';
-    }
-
-    search.value = '';
-    search.removeEventListener('input', search._renderHandler);
-    search._renderHandler = function() { render(this.value); };
-    search.addEventListener('input', search._renderHandler);
-    render('');
-}
-
-function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
+function submitAction(orderId, action, note, btn, msgEl, rowData) {
     btn.disabled = true;
     const orig = btn.textContent;
     btn.textContent = 'Saving…';
@@ -1603,9 +1566,6 @@ function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
     fd.append('action',   action);
     fd.append('order_id', orderId);
     fd.append('note',     note);
-    if (assignees && assignees.length > 0) {
-        fd.append('assignees', JSON.stringify(assignees));
-    }
 
     fetch('wo_action.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1613,12 +1573,14 @@ function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
             btn.disabled = false;
             btn.textContent = orig;
             if (res.success) {
+                // Update the row dataset in the table
                 const rows = document.querySelectorAll('.wo-row');
                 rows.forEach(function(row) {
                     if (row.dataset.id === String(orderId)) {
                         row.dataset.status = res.new_status;
                         row.dataset.filter = res.new_status;
                         row.dataset.notes  = (row.dataset.notes || '') + '\n' + res.log_entry;
+                        // Update status badge in row (last badge in row is always status)
                         const allBadges = row.querySelectorAll('td .badge');
                         const statusBadge = allBadges[allBadges.length - 1];
                         if (statusBadge) {
@@ -1628,18 +1590,21 @@ function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
                     }
                 });
                 applyTable();
+                // Update modal badge
                 const statusEl = document.getElementById('d-status-badge');
                 statusEl.className   = 'badge ' + (statusClassMap[res.new_status] || 'badge-pending');
                 statusEl.textContent = res.new_status;
+                // Update notes log in modal
                 const notesEl = document.getElementById('d-notes');
                 const notesSection = document.getElementById('d-notes-section');
                 const existing = notesEl.textContent.trim();
                 notesEl.textContent = existing ? existing + '\n' + res.log_entry : res.log_entry;
                 notesSection.style.display = '';
+                // Hide action panel (action taken)
                 document.getElementById('action-panel').style.display = 'none';
-                document.getElementById('assign-panel').style.display = 'none';
                 document.getElementById('action-note').value = '';
                 msgEl.style.display = 'none';
+                // Update notification badge count
                 const badge = document.querySelector('.notif-badge');
                 if (badge) {
                     const cur = parseInt(badge.textContent) || 1;
@@ -1673,7 +1638,6 @@ function injectNewRow(d) {
     const tr = document.createElement('tr');
     tr.className = 'wo-row';
     tr.dataset.filter     = 'Pending Approval';
-    tr.dataset.id         = '0';
     tr.dataset.wo         = d.wo;
     tr.dataset.name       = USER_NAME;
     tr.dataset.email      = USER_EMAIL;
@@ -1689,7 +1653,6 @@ function injectNewRow(d) {
     tr.dataset.status     = 'Pending Approval';
     tr.dataset.submitted  = dateStr;
     tr.dataset.attachment = '';
-    tr.dataset.notes      = '';
     tr.innerHTML = `
         <td><span class="wo-id">${d.wo}</span></td>
         <td style="color:#6b7a8d">${USER_NAME || USER_EMAIL}</td>
