@@ -568,9 +568,9 @@ function send_completion_email(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// BP NOTIFICATION EMAIL — when BT approves, notify Building Principal(s)
+// BA NOTIFICATION EMAIL — when BT approves, notify Building Admin(s)
 // ════════════════════════════════════════════════════════════════════════════
-function send_bp_notification_email(
+function send_ba_notification_email(
     mysqli $conn,
     string $wo_num,
     string $building,
@@ -580,15 +580,14 @@ function send_bp_notification_email(
     string $priority,
     string $submitted_name,
     string $submitted_by,
-    string $bt_name,
-    string $order_type = 'Technology'
+    string $bt_name
 ): void {
 
-    // Find active BP (Building Principal) for this building
+    // Find active BA for this building
     $stmt = $conn->prepare(
         "SELECT first_name, last_name, email
            FROM users
-          WHERE role = 'BP'
+          WHERE role = 'BA'
             AND building = ?
             AND active = 1"
     );
@@ -604,7 +603,7 @@ function send_bp_notification_email(
 
     $html = _build_status_email(
         $wo_num,
-        "{$order_type} work order approved by tech — awaiting your review",
+        "Technology work order approved by tech — awaiting your review",
         '#1a9ab8',
         'Approved',
         '#e6f7fb',
@@ -614,7 +613,7 @@ function send_bp_notification_email(
         "This work order was reviewed and approved by {$bt_name} and now requires your attention."
     );
 
-    $plain = "WORK ORDER APPROVED BY TECH — ACTION REQUIRED ({$order_type})\n"
+    $plain = "WORK ORDER APPROVED BY TECH — ACTION REQUIRED\n"
            . "==============================================\n\n"
            . "Work Order: {$wo_num}\n"
            . "Building:   {$building} / {$room}\n"
@@ -635,14 +634,14 @@ function send_bp_notification_email(
             $mail->AltBody = $plain;
             $mail->send();
         } catch (\Exception $e) {
-            error_log("WO Mailer [bp-notify]: failed to send to {$admin['email']} — " . $e->getMessage());
+            error_log("WO Mailer [ba-notify]: failed to send to {$admin['email']} — " . $e->getMessage());
         }
     }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// MANAGER NOTIFICATION EMAIL — when BP approves, notify MT (tech) or MM (maint)
-// Administrator never receives emails.
+// MANAGER NOTIFICATION EMAIL — when BA approves, notify Manager(s) ONLY
+// Admin never receives emails.
 // ════════════════════════════════════════════════════════════════════════════
 function send_manager_notification_email(
     mysqli $conn,
@@ -654,43 +653,38 @@ function send_manager_notification_email(
     string $priority,
     string $submitted_name,
     string $submitted_by,
-    string $bp_name,
-    string $order_type = 'Technology'
+    string $ba_name
 ): void {
 
-    // Fetch MT for tech orders, MM for maintenance — never Admin
-    $target_role = ($order_type === 'Technology') ? 'MT' : 'MM';
+    // Fetch active Managers only — never Admin
     $result = $conn->query(
-        "SELECT first_name, last_name, email FROM users WHERE role = '{$target_role}' AND active = 1"
+        "SELECT first_name, last_name, email FROM users WHERE role = 'M' AND active = 1"
     );
     if (!$result) return;
     $managers = [];
     while ($row = $result->fetch_assoc()) $managers[] = $row;
     if (empty($managers)) return;
 
-    $actor_label = ($order_type === 'Technology') ? 'Technology Manager' : 'Maintenance Manager';
-
     $html = _build_status_email(
         $wo_num,
-        "A {$order_type} work order has been approved and requires your assignment",
+        'A work order has been approved and requires your assignment',
         '#7c3aed',
         'Awaiting Assignment',
         '#f3e8ff',
         '#6b21a8',
         $building, $room, $problem_type, $priority,
-        $submitted_name, $bp_name, 'Building Principal',
-        "This work order was reviewed and approved by {$bp_name} and now requires your assignment."
+        $submitted_name, $ba_name, 'Building Admin',
+        "This work order was reviewed and approved by {$ba_name} and now requires your assignment."
     );
 
     $plain = "WORK ORDER REQUIRES YOUR ASSIGNMENT\n"
            . "====================================\n\n"
            . "Work Order: {$wo_num}\n"
-           . "Type:       {$order_type}\n"
            . "Building:   {$building} / {$room}\n"
            . "Problem:    {$problem_type}\n"
            . "Priority:   {$priority}\n"
            . "Submitted By: {$submitted_name} ({$submitted_by})\n\n"
-           . "Approved by: {$bp_name} (Building Principal)\n\n"
+           . "Approved by: {$ba_name} (Building Admin)\n\n"
            . "Please log in to assign this work order to the appropriate staff.\n"
            . "View it here: https://chs-cs.com/workorder/main.php?wo=" . urlencode($wo_num) . "\n\n"
            . "---\nWarrick County Work Order System (automated — do not reply)";
@@ -723,8 +717,7 @@ function send_assignment_email(
     string $priority,
     string $submitted_name,
     string $manager_name,
-    string $manager_role = 'Manager',
-    string $note = ''
+    string $note
 ): void {
 
     $pri_colors = [
@@ -790,7 +783,7 @@ HTML : '';
                 <td>
                   <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#aab0bb;margin-bottom:6px">Work Order</div>
                   <div style="font-size:36px;font-weight:700;color:#29b6d5;letter-spacing:.02em;line-height:1">{$wo_safe}</div>
-                  <div style="font-size:13px;color:#6b7a8d;margin-top:8px">Assigned by {$mgr_safe} ({$manager_role})</div>
+                  <div style="font-size:13px;color:#6b7a8d;margin-top:8px">Assigned by {$mgr_safe} (Manager)</div>
                 </td>
                 <td align="right" valign="top">
                   <div style="display:inline-block;background:{$pri_bg};border-radius:8px;padding:8px 18px">
@@ -873,13 +866,13 @@ HTML;
     $plain = "WORK ORDER ASSIGNED TO YOU\n"
            . "===========================\n\n"
            . "Work Order: {$wo_num}\n"
-           . "Assigned by: {$manager_name} ({$manager_role})\n\n"
+           . "Assigned by: {$manager_name} (Manager)\n\n"
            . "Building:   {$building} / {$room}\n"
            . "Problem:    {$problem_type}\n"
            . "Priority:   {$priority}\n"
            . "Submitted By: {$submitted_name}\n\n"
            . "Description:\n{$description}\n\n"
-           . ($note ? "{$manager_role} Notes:\n{$note}\n\n" : '')
+           . ($note ? "Manager Notes:\n{$note}\n\n" : '')
            . "View your work order: https://chs-cs.com/workorder/main.php?wo=" . urlencode($wo_num) . "\n\n"
            . "---\nWarrick County Work Order System (automated — do not reply)";
 

@@ -5,7 +5,7 @@
  * Called via fetch() POST from main.php JavaScript.
  *
  * POST params: action, order_id, note
- * For mt_assign / mm_assign: also assignees (JSON array of {email, name})
+ * For m_assign: also assignees (JSON array of {email, name})
  *
  * Returns JSON: { success, message, new_status, log_entry }
  */
@@ -27,10 +27,8 @@ $user_role        = $_SESSION['user_role'] ?? 'U';
 // ── Input ───────────────────────────────────────────────────────────────────
 $action   = trim($_POST['action']    ?? '');
 $order_id = (int)($_POST['order_id'] ?? 0);
-$note         = trim($_POST['note']         ?? '');
-$new_priority = trim($_POST['new_priority'] ?? '');
-$old_priority = trim($_POST['old_priority'] ?? '');
-$assignees_raw = trim($_POST['assignees']   ?? '');
+$note     = trim($_POST['note']      ?? '');
+$assignees_raw = trim($_POST['assignees'] ?? '');
 
 if (!$action || !$order_id) {
     echo json_encode(['success' => false, 'message' => 'Missing required parameters.']);
@@ -40,17 +38,12 @@ if (!$action || !$order_id) {
 // ── Role → allowed actions ──────────────────────────────────────────────────
 $allowed = [
     'BT' => ['bt_complete', 'bt_reject', 'bt_approve'],
-    'BP' => ['bp_approve', 'bp_reject', 'bp_complete', 'priority_only'],
-    'MT' => ['mt_assign', 'mt_complete', 'mt_reject', 'priority_only',
-             'bt_complete', 'bt_reject', 'bt_approve', 'bp_approve', 'bp_reject', 'bp_complete'],
-    'MM' => ['mm_assign', 'mm_complete', 'mm_reject', 'priority_only',
-             'bp_approve', 'bp_reject', 'bp_complete'],
-    'A'  => ['bt_complete', 'bt_reject', 'bt_approve',
-             'bp_approve', 'bp_reject', 'bp_complete',
-             'mt_assign', 'mt_complete', 'mt_reject',
-             'mm_assign', 'mm_complete', 'mm_reject',
-             'worker_complete', 'priority_only'],
-    'MW' => ['worker_complete'],
+    'BA' => ['ba_approve', 'ba_reject'],
+    'M'  => ['m_assign', 'm_complete', 'm_reject',
+             'bt_complete', 'bt_reject', 'bt_approve', 'ba_approve', 'ba_reject'],
+    'A'  => ['m_assign', 'm_complete', 'm_reject',
+             'bt_complete', 'bt_reject', 'bt_approve', 'ba_approve', 'ba_reject'],
+    'MD' => ['worker_complete'],
     'BC' => ['worker_complete'],
     'BM' => ['worker_complete'],
 ];
@@ -78,26 +71,21 @@ if (!$order) {
 }
 
 $current_status = $order['status'];
-$order_type     = $order['type'];
 
 // ── Validate legal transition ───────────────────────────────────────────────
 $valid_transitions = [
-    'bt_approve'      => 'Pending Approval',
-    'bt_reject'       => 'Pending Approval',
-    'bt_complete'     => 'Pending Approval',
-    'bp_approve'      => ['Pending Approval', 'Approved'],  // Pending for Maint, Approved for Tech
-    'bp_reject'       => ['Pending Approval', 'Approved'],
-    'bp_complete'     => ['Pending Approval', 'Approved'],
-    'mt_assign'       => 'Approved',
-    'mt_complete'     => ['Approved', 'In Progress'],
-    'mt_reject'       => ['Approved', 'In Progress'],
-    'mm_assign'       => 'Approved',
-    'mm_complete'     => ['Approved', 'In Progress'],
-    'mm_reject'       => ['Approved', 'In Progress'],
-    'worker_complete' => 'In Progress',
+    'bt_approve'     => 'Pending Approval',
+    'bt_reject'      => 'Pending Approval',
+    'bt_complete'    => 'Pending Approval',
+    'ba_approve'     => ['Pending Approval', 'Approved'],  // Pending for Maint, Approved for Tech
+    'ba_reject'      => ['Pending Approval', 'Approved'],
+    'm_assign'       => 'Approved',
+    'm_complete'     => ['Approved', 'In Progress'],
+    'm_reject'       => ['Approved', 'In Progress'],
+    'worker_complete'=> 'In Progress',
 ];
 
-if (!in_array($user_role, ['A', 'MT', 'MM'])) {
+if (!in_array($user_role, ['A', 'M'])) {
     $valid = $valid_transitions[$action] ?? null;
     $ok = is_array($valid)
         ? in_array($current_status, $valid)
@@ -110,12 +98,11 @@ if (!in_array($user_role, ['A', 'MT', 'MM'])) {
 
 // ── Role labels ─────────────────────────────────────────────────────────────
 $role_labels = [
-    'BT' => 'Building Technician',
-    'BP' => 'Building Principal',
-    'MT' => 'Technology Manager',
-    'MM' => 'Maintenance Manager',
-    'A'  => 'Administrator',
-    'MW' => 'Maintenance Worker',
+    'BT' => 'Building Tech',
+    'BA' => 'Building Admin',
+    'M'  => 'Manager',
+    'A'  => 'Admin',
+    'MD' => 'Maintenance Dept',
     'BC' => 'Building Custodian',
     'BM' => 'Building Maintenance',
 ];
@@ -123,57 +110,28 @@ $actor_role_label = $role_labels[$user_role] ?? $user_role;
 
 // ── New status map ──────────────────────────────────────────────────────────
 $status_map = [
-    'priority_only'   => null,
-    'bt_approve'      => 'Pending Approval',
+    'bt_approve'      => 'Approved',
     'bt_reject'       => 'Rejected',
     'bt_complete'     => 'Completed',
-    'bp_approve'      => 'Approved',
-    'bp_reject'       => 'Rejected',
-    'bp_complete'     => 'Completed',
-    'mt_assign'       => 'In Progress',
-    'mt_complete'     => 'Completed',
-    'mt_reject'       => 'Rejected',
-    'mm_assign'       => 'In Progress',
-    'mm_complete'     => 'Completed',
-    'mm_reject'       => 'Rejected',
+    'ba_approve'      => 'Approved',
+    'ba_reject'       => 'Rejected',
+    'm_assign'        => 'In Progress',
+    'm_complete'      => 'Completed',
+    'm_reject'        => 'Rejected',
     'worker_complete' => 'Completed',
 ];
-$new_status = $status_map[$action] ?? $current_status;
-
-// ── Handler map ─────────────────────────────────────────────────────────────
-$handler_map = [
-    'priority_only'   => $order['current_handler'],  // unchanged
-    'bt_approve'      => 'BP',
-    'bt_reject'       => null,
-    'bt_complete'     => null,
-    'bp_approve'      => $order_type === 'Technology' ? 'MT' : 'MM',
-    'bp_reject'       => null,
-    'bp_complete'     => null,
-    'mt_assign'       => 'worker',
-    'mt_complete'     => null,
-    'mt_reject'       => null,
-    'mm_assign'       => 'worker',
-    'mm_complete'     => null,
-    'mm_reject'       => null,
-    'worker_complete' => null,
-];
-$new_handler = array_key_exists($action, $handler_map) ? $handler_map[$action] : $order['current_handler'];
+$new_status = $status_map[$action];
 
 // ── Action log labels ───────────────────────────────────────────────────────
 $action_labels = [
-    'priority_only'   => 'Priority updated',
-    'bt_approve'      => 'Approved — escalated to Building Principal',
+    'bt_approve'      => 'Approved — escalated to Building Admin',
     'bt_reject'       => 'Rejected',
     'bt_complete'     => 'Marked Completed',
-    'bp_approve'      => 'Approved — escalated to Manager',
-    'bp_reject'       => 'Rejected',
-    'bp_complete'     => 'Marked Completed',
-    'mt_assign'       => 'Assigned — In Progress',
-    'mt_complete'     => 'Marked Completed',
-    'mt_reject'       => 'Rejected',
-    'mm_assign'       => 'Assigned — In Progress',
-    'mm_complete'     => 'Marked Completed',
-    'mm_reject'       => 'Rejected',
+    'ba_approve'      => 'Approved — escalated to Manager',
+    'ba_reject'       => 'Rejected',
+    'm_assign'        => 'Assigned — In Progress',
+    'm_complete'      => 'Marked Completed',
+    'm_reject'        => 'Rejected',
     'worker_complete' => 'Marked Completed',
 ];
 $action_label = $action_labels[$action] ?? $action;
@@ -181,29 +139,15 @@ $action_label = $action_labels[$action] ?? $action;
 // ── Build log entry ─────────────────────────────────────────────────────────
 $timestamp = date('m/d/Y g:i A');
 $log_entry = "\n[{$timestamp}] {$user_name} ({$actor_role_label}) → {$action_label}";
-
-$valid_priorities = ['Low', 'Mid', 'High', 'Urgent'];
-$priority_changed = in_array($new_priority, $valid_priorities) && $new_priority !== $order['priority'];
-if ($priority_changed) {
-    $from = $order['priority'] ?: $old_priority;
-    $log_entry .= "\nPriority changed from {$from} to {$new_priority}";
-}
 if ($note !== '') $log_entry .= "\n{$note}";
 
 // ── Terminal actions set resolved_by ────────────────────────────────────────
-$terminal_actions = [
-    'bt_reject', 'bt_complete',
-    'bp_reject', 'bp_complete',
-    'mt_reject', 'mt_complete',
-    'mm_reject', 'mm_complete',
-    'worker_complete',
-];
+$terminal_actions = ['bt_reject','bt_complete','ba_reject','m_reject','m_complete','worker_complete'];
 $resolved_by = in_array($action, $terminal_actions) ? $user_name : null;
 
-// ── Parse assignees for mt_assign / mm_assign ───────────────────────────────
+// ── Parse assignees for m_assign ───────────────────────────────────────────
 $assignees = [];
-$is_assign = in_array($action, ['mt_assign', 'mm_assign']);
-if ($is_assign && $assignees_raw) {
+if ($action === 'm_assign' && $assignees_raw) {
     $assignees = json_decode($assignees_raw, true) ?? [];
     if (!empty($assignees)) {
         $names = array_column($assignees, 'name');
@@ -214,26 +158,14 @@ if ($is_assign && $assignees_raw) {
 // ── Write order update to DB ────────────────────────────────────────────────
 if ($resolved_by !== null) {
     $stmt = $db->prepare(
-        "UPDATE orders SET status=?, current_handler=?, priority=IF(?='',priority,?), notes=CONCAT(COALESCE(notes,''),?), resolved_by=? WHERE id=?"
+        "UPDATE orders SET status=?, notes=CONCAT(COALESCE(notes,''),?), resolved_by=? WHERE id=?"
     );
-    $stmt->bind_param('ssssssi', $new_status, $new_handler, $new_priority, $new_priority, $log_entry, $resolved_by, $order_id);
+    $stmt->bind_param('sssi', $new_status, $log_entry, $resolved_by, $order_id);
 } else {
     $stmt = $db->prepare(
-        "UPDATE orders SET status=?, current_handler=?, priority=IF(?='',priority,?), notes=CONCAT(COALESCE(notes,''),?) WHERE id=?"
+        "UPDATE orders SET status=?, notes=CONCAT(COALESCE(notes,''),?) WHERE id=?"
     );
-    $stmt->bind_param('sssssi', $new_status, $new_handler, $new_priority, $new_priority, $log_entry, $order_id);
-}
-// Skip email sending for priority_only actions
-if ($action === 'priority_only') {
-    $db->close();
-    echo json_encode([
-        'success'      => true,
-        'message'      => 'Priority updated.',
-        'new_status'   => $new_status,
-        'new_priority' => $new_priority,
-        'log_entry'    => ltrim($log_entry, "\n"),
-    ]);
-    exit;
+    $stmt->bind_param('ssi', $new_status, $log_entry, $order_id);
 }
 $stmt->execute();
 $affected = $stmt->affected_rows;
@@ -245,7 +177,7 @@ if (!$affected) {
 }
 
 // ── Write assignments to order_assignments ──────────────────────────────────
-if ($is_assign && !empty($assignees)) {
+if ($action === 'm_assign' && !empty($assignees)) {
     $stmt = $db->prepare(
         "INSERT IGNORE INTO order_assignments (order_id, user_email, user_name) VALUES (?,?,?)"
     );
@@ -267,11 +199,11 @@ $stmt->close();
 
 $wo_num = 'WO-' . str_pad($order_id, 6, '0', STR_PAD_LEFT);
 
-// ── Send emails (after JSON response would normally be flushed) ─────────────
+// ── Send emails ─────────────────────────────────────────────────────────────
 require_once __DIR__ . '/wo_mailer.php';
 
 // Rejection → email submitter
-if (in_array($action, ['bt_reject', 'bp_reject', 'mt_reject', 'mm_reject'])) {
+if (in_array($action, ['bt_reject', 'ba_reject', 'm_reject'])) {
     send_rejection_email(
         $wo_num,
         $updated_order['submitted_name'],
@@ -287,7 +219,7 @@ if (in_array($action, ['bt_reject', 'bp_reject', 'mt_reject', 'mm_reject'])) {
 }
 
 // Completion → email submitter
-if (in_array($action, ['bt_complete', 'bp_complete', 'mt_complete', 'mm_complete', 'worker_complete'])) {
+if (in_array($action, ['bt_complete', 'm_complete', 'worker_complete'])) {
     send_completion_email(
         $wo_num,
         $updated_order['submitted_name'],
@@ -302,9 +234,9 @@ if (in_array($action, ['bt_complete', 'bp_complete', 'mt_complete', 'mm_complete
     );
 }
 
-// BT approves tech order → email BP(s) for this building
+// BT approves → email BA(s) only
 if ($action === 'bt_approve') {
-    send_bp_notification_email(
+    send_ba_notification_email(
         $db,
         $wo_num,
         $updated_order['building'],
@@ -314,49 +246,28 @@ if ($action === 'bt_approve') {
         $updated_order['priority'],
         $updated_order['submitted_name'],
         $updated_order['submitted_by'],
-        $user_name,
-        'Technology'
+        $user_name
     );
 }
 
-// BP approves maintenance order (no BT step) → email BP first, then when BP approves → MM
-// BP approves tech order → email MT
-if ($action === 'bp_approve') {
-    if ($order_type === 'Technology') {
-        send_manager_notification_email(
-            $db,
-            $wo_num,
-            $updated_order['building'],
-            $updated_order['room'],
-            $updated_order['problem_type'],
-            $updated_order['description'],
-            $updated_order['priority'],
-            $updated_order['submitted_name'],
-            $updated_order['submitted_by'],
-            $user_name,
-            'Technology'   // → notify MT
-        );
-    } else {
-        send_manager_notification_email(
-            $db,
-            $wo_num,
-            $updated_order['building'],
-            $updated_order['room'],
-            $updated_order['problem_type'],
-            $updated_order['description'],
-            $updated_order['priority'],
-            $updated_order['submitted_name'],
-            $updated_order['submitted_by'],
-            $user_name,
-            'Maintenance'  // → notify MM
-        );
-    }
+// BA approves → email Manager(s) only — NOT Admin
+if ($action === 'ba_approve') {
+    send_manager_notification_email(
+        $db,
+        $wo_num,
+        $updated_order['building'],
+        $updated_order['room'],
+        $updated_order['problem_type'],
+        $updated_order['description'],
+        $updated_order['priority'],
+        $updated_order['submitted_name'],
+        $updated_order['submitted_by'],
+        $user_name
+    );
 }
 
-// User submits maintenance → BP gets notified (this is handled in main.php on submit)
-// MT or MM assigns → email each assigned worker
-if ($is_assign && !empty($assignees)) {
-    $manager_label = ($action === 'mt_assign') ? 'Technology Manager' : 'Maintenance Manager';
+// Manager assigns → email each assigned worker
+if ($action === 'm_assign' && !empty($assignees)) {
     foreach ($assignees as $a) {
         if (!empty($a['email']) && !empty($a['name'])) {
             send_assignment_email(
@@ -370,7 +281,6 @@ if ($is_assign && !empty($assignees)) {
                 $updated_order['priority'],
                 $updated_order['submitted_name'],
                 $user_name,
-                $manager_label,
                 $note
             );
         }
@@ -380,9 +290,8 @@ if ($is_assign && !empty($assignees)) {
 $db->close();
 
 echo json_encode([
-    'success'      => true,
-    'message'      => 'Work order updated successfully.',
-    'new_status'   => $new_status,
-    'new_priority' => $priority_changed ? $new_priority : null,
-    'log_entry'    => ltrim($log_entry, "\n"),
+    'success'    => true,
+    'message'    => 'Work order updated successfully.',
+    'new_status' => $new_status,
+    'log_entry'  => ltrim($log_entry, "\n"),
 ]);

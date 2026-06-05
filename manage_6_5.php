@@ -32,7 +32,7 @@ $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 $conn->set_charset('utf8mb4');
 
 // ── Roles that require a building assignment ───────────────
-$building_roles = ['BP','BT','BC','BM'];  // MW has no building
+$building_roles = ['BA','BT','BC','BM'];
 // MD does NOT require a building
 
 // ── Handle POST actions ────────────────────────────────────
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role  = $_POST['role'] ?? 'U';
         $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($fn && $ln && $em && in_array($role, ['A','MT','MM','BP','BT','BC','BM','MW','U'])) {
+        if ($fn && $ln && $em && in_array($role, ['A','M','BA','BT','BC','BM','MD','U'])) {
             $stmt = $conn->prepare("INSERT INTO users (first_name,last_name,email,role,building) VALUES (?,?,?,?,?)");
             $stmt->bind_param('sssss', $fn, $ln, $em, $role, $bldg);
             $stmt->execute();
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role  = $_POST['role'] ?? 'U';
         $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($id && $fn && $ln && in_array($role, ['A','MT','MM','BP','BT','BC','BM','MW','U'])) {
+        if ($id && $fn && $ln && in_array($role, ['A','M','BA','BT','BC','BM','MD','U'])) {
             $stmt = $conn->prepare("UPDATE users SET first_name=?,last_name=?,role=?,building=? WHERE id=?");
             $stmt->bind_param('ssssi', $fn, $ln, $role, $bldg, $id);
             $stmt->execute();
@@ -104,14 +104,13 @@ $building_groups = [
 ];
 
 $role_labels = [
-    'A'  => 'Administrator',
-    'MT' => 'Technology Manager',
-    'MM' => 'Maintenance Manager',
-    'BP' => 'Building Principal',
+    'A'  => 'Admin',
+    'M'  => 'Manager',
+    'BA' => 'Building Admin',
     'BT' => 'Building Technician',
     'BC' => 'Building Custodian',
     'BM' => 'Building Maintenance',
-    'MW' => 'Maintenance Worker',
+    'MD' => 'Maintenance Dept',
     'U'  => 'User',
 ];
 
@@ -175,14 +174,13 @@ $role_labels = [
 /* role badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
 .badge-a  {background:#f3e8ff;color:#6b21a8}
-.badge-mt {background:#fef3c7;color:#92400e}
-.badge-mm {background:#fce7f3;color:#9d174d}
-.badge-bp {background:#e6f7fb;color:#1a9ab8}
+.badge-m  {background:#fef3c7;color:#92400e}
+.badge-ba {background:#e6f7fb;color:#1a9ab8}
 .badge-u  {background:#f1f5f9;color:#475569}
 .badge-bt {background:#dcfce7;color:#166534}
 .badge-bc {background:#fef9c3;color:#854d0e}
 .badge-bm {background:#ffe4e6;color:#9f1239}
-.badge-mw {background:#ede9fe;color:#5b21b6}
+.badge-md {background:#ede9fe;color:#5b21b6}
 .badge-active  {background:#d1fae5;color:#065f46}
 .badge-inactive{background:#fee2e2;color:#991b1b}
 
@@ -262,13 +260,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 <div class="filter-tabs">
                     <button class="filter-tab active" data-role="all">All</button>
                     <button class="filter-tab" data-role="A">Admins</button>
-                    <button class="filter-tab" data-role="MT">Tech Managers</button>
-                    <button class="filter-tab" data-role="MM">Maint Managers</button>
-                    <button class="filter-tab" data-role="BP">Building Principals</button>
+                    <button class="filter-tab" data-role="M">Managers</button>
+                    <button class="filter-tab" data-role="BA">Building Admins</button>
                     <button class="filter-tab" data-role="BT">Building Tech</button>
                     <button class="filter-tab" data-role="BC">Building Custodian</button>
                     <button class="filter-tab" data-role="BM">Building Maintenance</button>
-                    <button class="filter-tab" data-role="MW">Maintenance Workers</button>
+                    <button class="filter-tab" data-role="MD">Maintenance Dept</button>
                     <button class="filter-tab" data-role="U">Users</button>
                 </div>
                 <div class="search-wrap">
@@ -366,7 +363,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 $rk = preg_replace('/[^A-Z]/', '', trim($u['role']));
                 $counts[$rk] = ($counts[$rk] ?? 0) + 1;
             }
-            $role_order = ['A','MT','MM','BP','BT','BC','BM','MW','U'];
+            $role_order = ['A','M','BA','BT','BC','BM','MD','U'];
             ?>
             <div class="summary-card">
                 <div class="summary-card-header">User Summary</div>
@@ -429,14 +426,13 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                         <label class="form-label" for="f-role">Role *</label>
                         <select id="f-role" name="role" required>
                             <option value="U">User</option>
-                            <option value="BP">Building Principal</option>
-                            <option value="BT">Building Technician</option>
+                            <option value="BA">Building Admin</option>
+                            <option value="BT">Building Tech</option>
                             <option value="BC">Building Custodian</option>
                             <option value="BM">Building Maintenance</option>
-                            <option value="MW">Maintenance Worker</option>
-                            <option value="MT">Technology Manager</option>
-                            <option value="MM">Maintenance Manager</option>
-                            <option value="A">Administrator</option>
+                            <option value="MD">Maintenance Dept</option>
+                            <option value="M">Manager</option>
+                            <option value="A">Admin</option>
                         </select>
                     </div>
                 </div>
@@ -554,8 +550,8 @@ document.querySelectorAll('.user-row').forEach(r => r._matches = true);
 renderPage();
 
 // ── Building field visibility ─────────────────────────────
-// MW does NOT get a building field — they are corp-wide
-const buildingRoles = ['BP','BT','BC','BM'];  // MW has no building
+// MD does NOT get a building field — they are corp-wide
+const buildingRoles = ['BA','BT','BC','BM'];
 document.getElementById('f-role').addEventListener('change', function() {
     const bg    = document.getElementById('building-group');
     const needs = buildingRoles.includes(this.value);

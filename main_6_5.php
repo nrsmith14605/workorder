@@ -90,15 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
             }
         }
 
-        // Set initial current_handler based on order type
-        $initial_handler = ($type === 'Technology') ? 'BT' : 'BP';
-        $upd2 = $conn->prepare("UPDATE orders SET current_handler=? WHERE id=?");
-        $upd2->bind_param('si', $initial_handler, $insert_id);
-        $upd2->execute();
-        $upd2->close();
-
-        require_once __DIR__ . '/wo_mailer.php';
         if ($type === 'Technology') {
+            require_once __DIR__ . '/wo_mailer.php';
             send_tech_wo_email(
                 $conn,
                 $wo_num,
@@ -109,21 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
                 $priority,
                 $submitted_name,
                 $user_email
-            );
-        } else {
-            // Maintenance: notify BP for this building directly on submission
-            send_bp_notification_email(
-                $conn,
-                $wo_num,
-                $building,
-                $room,
-                $problem_type,
-                $description,
-                $priority,
-                $submitted_name,
-                $user_email,
-                $submitted_name,
-                'Maintenance'
             );
         }
 
@@ -138,17 +116,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
 }
 
 // Role display label and badge color
-$role_labels = ['A' => 'Administrator', 'MT' => 'Technology Manager', 'MM' => 'Maintenance Manager', 'BP' => 'Building Principal', 'BT' => 'Building Technician', 'BC' => 'Building Custodian', 'BM' => 'Building Maintenance', 'MW' => 'Maintenance Worker', 'U' => 'User'];
+$role_labels = ['A' => 'Admin', 'M' => 'Manager', 'BA' => 'Building Admin', 'BT' => 'Building Tech', 'BC' => 'Building Custodian', 'BM' => 'Building Maintenance', 'MD' => 'Maintenance Dept', 'U' => 'User'];
 $role_label  = $role_labels[$user_role] ?? 'User';
 $role_colors = [
     'A'  => 'background:#f3e8ff;color:#6b21a8',
-    'MT' => 'background:#fef3c7;color:#92400e',
-    'MM' => 'background:#fce7f3;color:#9d174d',
-    'BP' => 'background:#e6f7fb;color:#1a9ab8',
+    'M'  => 'background:#fef3c7;color:#92400e',
+    'BA' => 'background:#e6f7fb;color:#1a9ab8',
     'BT' => 'background:#dcfce7;color:#166534',
     'BC' => 'background:#fef9c3;color:#854d0e',
     'BM' => 'background:#ffe4e6;color:#9f1239',
-    'MW' => 'background:#ede9fe;color:#5b21b6',
+    'MD' => 'background:#ede9fe;color:#5b21b6',
     'U'  => 'background:#f1f5f9;color:#475569',
 ];
 $role_style = $role_colors[$user_role] ?? $role_colors['U'];
@@ -165,18 +142,10 @@ require_once __DIR__ . '/../../wo_config.php';
 $db = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 $db->set_charset('utf8mb4');
 $orders = [];
-if ($user_role === 'A') {
+if (in_array($user_role, ['A', 'M'])) {
     $res = $db->query("SELECT * FROM orders ORDER BY created_at DESC");
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
-} elseif ($user_role === 'MT') {
-    // Tech orders that have reached MT or beyond
-    $res = $db->query("SELECT * FROM orders WHERE type = 'Technology' AND (current_handler IN ('MT','worker') OR status IN ('Completed','Rejected')) ORDER BY created_at DESC");
-    if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
-} elseif ($user_role === 'MM') {
-    // Maintenance orders that have reached MM or beyond
-    $res = $db->query("SELECT * FROM orders WHERE type = 'Maintenance' AND (current_handler IN ('MM','worker') OR status IN ('Completed','Rejected')) ORDER BY created_at DESC");
-    if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
-} elseif ($user_role === 'BP') {
+} elseif ($user_role === 'BA') {
     $stmt = $db->prepare("SELECT * FROM orders WHERE building = ? ORDER BY created_at DESC");
     $stmt->bind_param('s', $user_building);
     $stmt->execute();
@@ -195,7 +164,7 @@ if ($user_role === 'A') {
         while ($row = $res->fetch_assoc()) $orders[] = $row;
         $stmt->close();
     }
-} elseif (in_array($user_role, ['BM', 'BC', 'MW'])) {
+} elseif (in_array($user_role, ['BM', 'BC', 'MD'])) {
     // Workers only see orders assigned to them via order_assignments
     $stmt = $db->prepare(
         "SELECT o.* FROM orders o
@@ -220,16 +189,16 @@ $db->close();
 
 // ── Fetch assignable workers for Manager assignment panel ─────
 $assignable_workers = [];
-if (in_array($user_role, ['MT', 'MM', 'A'])) {
+if (in_array($user_role, ['M', 'A'])) {
     $db3 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     $db3->set_charset('utf8mb4');
     $res3 = $db3->query(
         "SELECT first_name, last_name, email, role, building
            FROM users
-          WHERE role IN ('MW','BC','BM')
+          WHERE role IN ('MD','BC','BM')
             AND active = 1
           ORDER BY
-            FIELD(role,'MW','BC','BM'),
+            FIELD(role,'MD','BC','BM'),
             last_name, first_name"
     );
     if ($res3) while ($row = $res3->fetch_assoc()) $assignable_workers[] = $row;
@@ -238,7 +207,7 @@ if (in_array($user_role, ['MT', 'MM', 'A'])) {
 
 // ── Notification count for bell badge ────────────────────────
 $notif_count = 0;
-if (in_array($user_role, ['BT', 'BP', 'MT', 'MM', 'A', 'MW', 'BC', 'BM'])) {
+if (in_array($user_role, ['BT', 'BA', 'M', 'A', 'MD', 'BC', 'BM'])) {
     $db2 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     $db2->set_charset('utf8mb4');
     if ($user_role === 'BT') {
@@ -246,39 +215,38 @@ if (in_array($user_role, ['BT', 'BP', 'MT', 'MM', 'A', 'MW', 'BC', 'BM'])) {
         if ($bt_buildings) {
             $placeholders = implode(',', array_fill(0, count($bt_buildings), '?'));
             $types = str_repeat('s', count($bt_buildings));
-            $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE current_handler='BT' AND building IN ($placeholders)");
+            $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE building IN ($placeholders) AND type='Technology' AND status='Pending Approval'");
             $stmt2->bind_param($types, ...$bt_buildings);
             $stmt2->execute();
             $stmt2->bind_result($notif_count);
             $stmt2->fetch();
             $stmt2->close();
         }
-    } elseif ($user_role === 'BP') {
-        $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE current_handler='BP' AND building=?");
+    } elseif ($user_role === 'BA') {
+        $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE building=? AND status IN ('Pending Approval','Approved')");
         $stmt2->bind_param('s', $user_building);
         $stmt2->execute();
         $stmt2->bind_result($notif_count);
         $stmt2->fetch();
         $stmt2->close();
-    } elseif (in_array($user_role, ['MW', 'BC', 'BM'])) {
+    } elseif (in_array($user_role, ['MD', 'BC', 'BM'])) {
         $stmt2 = $db2->prepare(
             "SELECT COUNT(*) FROM orders o
              INNER JOIN order_assignments oa ON o.id = oa.order_id
-             WHERE oa.user_email = ? AND o.current_handler = 'worker'"
+             WHERE oa.user_email = ? AND o.status = 'In Progress'"
         );
         $stmt2->bind_param('s', $user_email);
         $stmt2->execute();
         $stmt2->bind_result($notif_count);
         $stmt2->fetch();
         $stmt2->close();
-    } elseif ($user_role === 'MT') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler='MT'");
-        if ($res2) { [$notif_count] = $res2->fetch_row(); }
-    } elseif ($user_role === 'MM') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler='MM'");
+    } elseif ($user_role === 'M') {
+        // Manager sees orders at 'Approved' status — ready for their assignment
+        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE status = 'Approved'");
         if ($res2) { [$notif_count] = $res2->fetch_row(); }
     } elseif ($user_role === 'A') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler IS NOT NULL");
+        // Admin sees all actionable orders
+        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE status IN ('Pending Approval','Approved')");
         if ($res2) { [$notif_count] = $res2->fetch_row(); }
     }
     $db2->close();
@@ -578,11 +546,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .assign-selected-count{font-size:12px;color:var(--cyan-dark);font-weight:600;margin-bottom:8px;min-height:18px}
 
 /* ── DETAIL MODAL ── */
-.detail-modal{max-width:1000px}
-.detail-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start}
-.detail-col-left{padding-right:20px;border-right:1px solid #f0f4f8}
-.detail-col-right{padding-left:20px;display:flex;flex-direction:column;gap:0}
-@media(max-width:700px){.detail-two-col{grid-template-columns:1fr}.detail-col-left{padding-right:0;border-right:none;border-bottom:1px solid #f0f4f8;padding-bottom:16px;margin-bottom:4px}.detail-col-right{padding-left:0}}
+.detail-modal{max-width:700px}
 .detail-section{margin-bottom:12px}
 .detail-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aab0bb;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f4f8}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
@@ -641,16 +605,17 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <?php endif; ?>
         </button>
         <div class="notif-dropdown" id="notif-dd">
+            <div class="notif-dd-header">Pending Action</div>
             <?php
             $notif_orders = array_filter($orders, function($o) use ($user_role) {
-                if (in_array($user_role, ['MW','BC','BM'])) return ($o['current_handler'] ?? '') === 'worker';
-                return ($o['current_handler'] ?? '') === $user_role;
+                if ($user_role === 'BT') return $o['status'] === 'Pending Approval';
+                if ($user_role === 'BA') return in_array($o['status'], ['Pending Approval', 'Approved']);
+                if ($user_role === 'M')  return $o['status'] === 'Approved';
+                if (in_array($user_role, ['MD','BC','BM'])) return $o['status'] === 'In Progress';
+                return in_array($o['status'], ['Pending Approval', 'Approved']);
             });
-            $has_notifs = !empty($notif_orders);
-            ?>
-            <div class="notif-dd-header"><?= $has_notifs ? 'Pending action' : 'No pending work orders' ?></div>
-            <?php if (!$has_notifs): ?>
-            <div class="notif-empty">You're all caught up.</div>
+            if (empty($notif_orders)): ?>
+            <div class="notif-empty">No pending items</div>
             <?php else: foreach (array_slice(array_values($notif_orders), 0, 8) as $no):
                 $no_wo  = 'WO-' . str_pad($no['id'], 6, '0', STR_PAD_LEFT);
                 $no_age = human_time_diff($no['created_at']);
@@ -714,7 +679,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     </div>
 
     <!-- Work order type cards — hidden for workers who only act on assigned orders -->
-    <?php if (!in_array($user_role, ['MW', 'BC', 'BM'])): ?>
+    <?php if (!in_array($user_role, ['MD', 'BC', 'BM'])): ?>
     <div class="type-cards">
         <div class="type-card" id="card-maint" role="button" tabindex="0" aria-label="Create maintenance work order">
             <div class="type-card-title">
@@ -737,10 +702,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <!-- Work Orders table -->
     <div class="section-head">
-        <h2><?= in_array($user_role, ['MW','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
+        <h2><?= in_array($user_role, ['MD','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
         <div class="filter-tabs">
             <button class="filter-tab active" data-filter="all">All</button>
-            <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
+            <?php if (!in_array($user_role, ['MD','BC','BM'])): ?>
             <button class="filter-tab" data-filter="Pending Approval">Pending</button>
             <button class="filter-tab" data-filter="Approved">Approved</button>
             <?php endif; ?>
@@ -889,7 +854,7 @@ if (empty($orders)): ?>
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label" for="f-building">Building *</label>
                             <select id="f-building" name="building" required>
-                                <?php if ($user_role === 'BP' && $user_building): ?>
+                                <?php if ($user_role === 'BA' && $user_building): ?>
                                     <option value="<?= htmlspecialchars($user_building) ?>" selected><?= htmlspecialchars($user_building) ?></option>
                                     <option disabled>──────────</option>
                                 <?php else: ?>
@@ -1043,123 +1008,98 @@ if (empty($orders)): ?>
                 <i class="ti ti-x" aria-hidden="true"></i>
             </button>
         </div>
-        <div class="modal-body" style="overflow-y:auto">
-            <div class="detail-two-col">
+        <div class="modal-body" style="max-height:75vh;overflow-y:auto">
 
-                <!-- LEFT COLUMN: order info + action panel -->
-                <div class="detail-col-left">
-
-                    <div class="detail-section">
-                        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-                            <p id="d-wo" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cyan)"></p>
-                            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                                <span id="d-priority-badge"></span>
-                                <span id="d-status-badge"></span>
-                            </div>
-                        </div>
-                        <div class="detail-grid">
-                            <div class="detail-field">
-                                <label>Submitted By</label>
-                                <p id="d-submitter"></p>
-                                <p id="d-email" style="font-size:11px;color:#6b7a8d;margin-top:2px"></p>
-                            </div>
-                            <div class="detail-field">
-                                <label>Submitted</label>
-                                <p id="d-submitted"></p>
-                            </div>
-                        </div>
+            <div class="detail-section">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                    <p id="d-wo" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cyan)"></p>
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <span id="d-priority-badge"></span>
+                        <span id="d-status-badge"></span>
                     </div>
-
-                    <div class="detail-section">
-                        <div class="detail-section-title">Location</div>
-                        <div class="detail-grid">
-                            <div class="detail-field">
-                                <label>Building</label>
-                                <p id="d-building"></p>
-                            </div>
-                            <div class="detail-field">
-                                <label>Room / Area</label>
-                                <p id="d-room"></p>
-                            </div>
-                            <div class="detail-field" id="d-time-wrap">
-                                <label>Time Available</label>
-                                <p id="d-time"></p>
-                            </div>
-                        </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-field">
+                        <label>Submitted By</label>
+                        <p id="d-submitter"></p>
+                        <p id="d-email" style="font-size:11px;color:#6b7a8d;margin-top:2px"></p>
                     </div>
-
-                    <div class="detail-section">
-                        <div class="detail-section-title">Request Details</div>
-                        <div class="detail-grid" style="margin-bottom:12px">
-                            <div class="detail-field" id="d-purpose-wrap">
-                                <label>Purpose</label>
-                                <p id="d-purpose"></p>
-                            </div>
-                            <div class="detail-field" id="d-problem-wrap">
-                                <label>Problem Type</label>
-                                <p id="d-problem"></p>
-                            </div>
-                        </div>
-                        <div class="detail-field full">
-                            <label>Description</label>
-                            <div class="detail-desc" id="d-desc"></div>
-                        </div>
+                    <div class="detail-field">
+                        <label>Submitted</label>
+                        <p id="d-submitted"></p>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Attachment -->
-                    <div class="detail-section" id="d-attachment-section">
-                        <div class="detail-section-title">Attachment</div>
-                        <div class="attachment-thumb" id="d-attachment-wrap">
-                            <div class="attachment-placeholder">
-                                <i class="ti ti-photo-off" aria-hidden="true"></i>
-                                <span>No attachment provided</span>
-                            </div>
-                        </div>
+            <div class="detail-section">
+                <div class="detail-section-title">Location</div>
+                <div class="detail-grid">
+                    <div class="detail-field">
+                        <label>Building</label>
+                        <p id="d-building"></p>
                     </div>
-
-                    <!-- Priority panel — shown for BP, MT, MM, A -->
-                    <div id="action-priority-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:8px">Change Priority</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button type="button" class="action-pri-pill" data-p="Low"    style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Low</button>
-                            <button type="button" class="action-pri-pill" data-p="Mid"    style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Mid</button>
-                            <button type="button" class="action-pri-pill" data-p="High"   style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">High</button>
-                            <button type="button" class="action-pri-pill" data-p="Urgent" style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Urgent</button>
-                        </div>
+                    <div class="detail-field">
+                        <label>Room / Area</label>
+                        <p id="d-room"></p>
                     </div>
-
-                    <!-- Action panel -->
-                    <div id="action-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:10px">Add Note (optional)</div>
-                        <textarea id="action-note" rows="3" placeholder="Add a note to be included with this action…" style="width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Barlow',sans-serif;resize:vertical;margin-bottom:12px"></textarea>
-                        <div id="action-buttons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-                        <div id="action-msg" style="font-size:12px;margin-top:10px;display:none"></div>
+                    <div class="detail-field" id="d-time-wrap">
+                        <label>Time Available</label>
+                        <p id="d-time"></p>
                     </div>
+                </div>
+            </div>
 
-                </div><!-- /detail-col-left -->
-
-                <!-- RIGHT COLUMN: activity log + assign panel -->
-                <div class="detail-col-right">
-
-                    <!-- Activity Log — always shown, placeholder if empty -->
-                    <div class="detail-section">
-                        <div class="detail-section-title">Activity Log</div>
-                        <div id="d-notes-section">
-                            <div class="detail-desc" id="d-notes" style="white-space:pre-wrap;font-size:12px;color:#6b7a8d;line-height:1.7;min-height:60px"></div>
-                        </div>
+            <div class="detail-section">
+                <div class="detail-section-title">Request Details</div>
+                <div class="detail-grid" style="margin-bottom:12px">
+                    <div class="detail-field" id="d-purpose-wrap">
+                        <label>Purpose</label>
+                        <p id="d-purpose"></p>
                     </div>
-
-                    <!-- Assignment panel — shown to MT/MM/A when status is Approved -->
-                    <div id="assign-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:8px">Assign To</div>
-                        <div class="assign-selected-count" id="assign-count"></div>
-                        <input type="text" class="assign-search" id="assign-search" placeholder="Search workers…">
-                        <div class="assign-list" id="assign-list"></div>
+                    <div class="detail-field" id="d-problem-wrap">
+                        <label>Problem Type</label>
+                        <p id="d-problem"></p>
                     </div>
+                </div>
+                <div class="detail-field full">
+                    <label>Description</label>
+                    <div class="detail-desc" id="d-desc"></div>
+                </div>
+            </div>
 
-                </div><!-- /detail-col-right -->
+            <!-- Notes / Activity Log -->
+            <div class="detail-section" id="d-notes-section" style="display:none">
+                <div class="detail-section-title">Activity Log</div>
+                <div class="detail-desc" id="d-notes" style="white-space:pre-wrap;font-size:12px;color:#6b7a8d;line-height:1.7"></div>
+            </div>
 
-            </div><!-- /detail-two-col -->
+            <!-- Attachment -->
+            <div class="detail-section" id="d-attachment-section">
+                <div class="detail-section-title">Attachment</div>
+                <div class="attachment-thumb" id="d-attachment-wrap">
+                    <div class="attachment-placeholder">
+                        <i class="ti ti-photo-off" aria-hidden="true"></i>
+                        <span>No attachment provided</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Assignment panel — shown to M/A when status is Approved -->
+        <div id="assign-panel" style="display:none;padding:14px 24px 0;border-top:1px solid #f0f4f8;background:#fafafa">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:8px">Assign To</div>
+            <div class="assign-selected-count" id="assign-count"></div>
+            <input type="text" class="assign-search" id="assign-search" placeholder="Search workers…">
+            <div class="assign-list" id="assign-list"></div>
+        </div>
+
+        <!-- Action panel -->
+        <div id="action-panel" style="display:none;padding:16px 24px;border-top:1px solid #f0f4f8;background:#fafafa">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:10px">Add Note (optional)</div>
+            <textarea id="action-note" rows="3" placeholder="Add a note to be included with this action…" style="width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Barlow',sans-serif;resize:vertical;margin-bottom:12px"></textarea>
+            <div id="action-buttons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+            <div id="action-msg" style="font-size:12px;margin-top:10px;display:none"></div>
         </div>
 
         <div class="modal-footer">
@@ -1508,10 +1448,13 @@ function openDetailModal(d) {
         attachWrap.innerHTML = '<div class="attachment-placeholder"><i class="ti ti-photo-off" aria-hidden="true"></i><span>No attachment provided</span></div>';
     }
 
-// Notes / activity log — always visible, empty state if no entries yet
+    // Notes / activity log
+    const notesSection = document.getElementById('d-notes-section');
     const notesEl = document.getElementById('d-notes');
-    notesEl.textContent = (d.notes && d.notes.trim()) ? d.notes.trim() : 'No activity yet.';
-    notesEl.style.color = (d.notes && d.notes.trim()) ? '#6b7a8d' : '#d0d5dd';
+    if (d.notes && d.notes.trim()) {
+        notesEl.textContent = d.notes.trim();
+        notesSection.style.display = '';
+    } else { notesSection.style.display = 'none'; }
 
     // Action panel — build role+status-aware buttons
     const panel     = document.getElementById('action-panel');
@@ -1524,77 +1467,35 @@ function openDetailModal(d) {
 
     const btActions = [
         { label: '✓ Mark Completed', action: 'bt_complete', cls: 'btn-success' },
-        { label: '↑ Approve → Principal', action: 'bt_approve', cls: 'btn-primary' },
+        { label: '↑ Approve → Admin', action: 'bt_approve', cls: 'btn-primary' },
         { label: '✕ Reject',          action: 'bt_reject',  cls: 'btn-danger'  },
     ];
-    const bpActions = [
-        { label: '↑ Approve → Manager', action: 'bp_approve', cls: 'btn-primary' },
-        { label: '✓ Mark Completed',     action: 'bp_complete', cls: 'btn-success' },
-        { label: '✕ Reject',            action: 'bp_reject',  cls: 'btn-danger'  },
+    const baActions = [
+        { label: '↑ Approve → Manager', action: 'ba_approve', cls: 'btn-primary' },
+        { label: '✕ Reject',            action: 'ba_reject',  cls: 'btn-danger'  },
     ];
-    const mtActions = [
-        { label: '✓ Mark Completed', action: 'mt_complete', cls: 'btn-success' },
-        { label: '✕ Reject',         action: 'mt_reject',   cls: 'btn-danger'  },
-    ];
-    const mmActions = [
-        { label: '✓ Mark Completed', action: 'mm_complete', cls: 'btn-success' },
-        { label: '✕ Reject',         action: 'mm_reject',   cls: 'btn-danger'  },
+    const mActions = [
+        { label: '✓ Mark Completed', action: 'm_complete', cls: 'btn-success' },
+        { label: '✕ Reject',         action: 'm_reject',   cls: 'btn-danger'  },
     ];
     const workerActions = [
         { label: '✓ Mark Completed', action: 'worker_complete', cls: 'btn-success' },
     ];
 
-    // Priority pills — shown for BP, MT, MM, A
-    const priorityPanel = document.getElementById('action-priority-panel');
-    if (inArrJS(['BP','MT','MM','A'], USER_ROLE)) {
-        priorityPanel.style.display = '';
-        const priPillColors = { Low:['#d1fae5','#10b981','#065f46'], Mid:['#dbeafe','#3b82f6','#1e40af'], High:['#fef3c7','#f59e0b','#92400e'], Urgent:['#fee2e2','#ef4444','#991b1b'] };
-        priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(p) {
-            p.classList.remove('sel');
-            p.style.background = 'transparent'; p.style.borderColor = '#e8ecf0'; p.style.color = '#6b7a8d';
-            if (p.dataset.p === d.priority) {
-                p.classList.add('sel');
-                const c = priPillColors[p.dataset.p];
-                if (c) { p.style.background = c[0]; p.style.borderColor = c[1]; p.style.color = c[2]; }
-            }
-        });
-        priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(p) {
-            p.onclick = function() {
-                priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(x) {
-                    x.classList.remove('sel');
-                    x.style.background = 'transparent'; x.style.borderColor = '#e8ecf0'; x.style.color = '#6b7a8d';
-                });
-                p.classList.add('sel');
-                const c = priPillColors[p.dataset.p];
-                if (c) { p.style.background = c[0]; p.style.borderColor = c[1]; p.style.color = c[2]; }
-            };
-        });
-    } else {
-        priorityPanel.style.display = 'none';
-    }
-
     let actions    = [];
     let showAssign = false;
-    // BT: tech orders at Pending Approval
-    if (USER_ROLE === 'BT' && d.status === 'Pending Approval' && d.type === 'Technology') actions = btActions;
-    // BP: maintenance at Pending Approval (no BT step); tech at Approved (after BT)
-    if (USER_ROLE === 'BP' && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = bpActions;
-    if (USER_ROLE === 'BP' && d.status === 'Approved'         && d.type === 'Technology')  actions = bpActions;
-    // MT: approved tech orders (assign) or in-progress tech orders
-    if (USER_ROLE === 'MT' && d.status === 'Approved'    && d.type === 'Technology') { actions = mtActions; showAssign = true; }
-    if (USER_ROLE === 'MT' && d.status === 'In Progress' && d.type === 'Technology') actions = mtActions;
-    // MM: approved maintenance orders (assign) or in-progress maintenance orders
-    if (USER_ROLE === 'MM' && d.status === 'Approved'    && d.type === 'Maintenance') { actions = mmActions; showAssign = true; }
-    if (USER_ROLE === 'MM' && d.status === 'In Progress' && d.type === 'Maintenance') actions = mmActions;
-    // Admin: full override
-    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = bpActions;
+    if (USER_ROLE === 'BT' && d.status === 'Pending Approval') actions = btActions;
+    // BA sees actions on Pending Approval for Maintenance (no BT in chain)
+    // and on Approved for Technology (BT already approved it)
+    if (USER_ROLE === 'BA' && d.status === 'Approved')                                    actions = baActions;
+    if (USER_ROLE === 'BA' && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = baActions;
+    if (USER_ROLE === 'M'  && d.status === 'Approved')         { actions = mActions; showAssign = true; }
+    if (USER_ROLE === 'M'  && d.status === 'In Progress')      actions = mActions;
+    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = baActions;
     if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Technology')  actions = btActions;
-    if (USER_ROLE === 'A'  && d.status === 'Approved' && d.type === 'Technology')   { actions = mtActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'Approved' && d.type === 'Maintenance')  { actions = mmActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'In Progress' && d.type === 'Technology')   actions = mtActions;
-    if (USER_ROLE === 'A'  && d.status === 'In Progress' && d.type === 'Maintenance')  actions = mmActions;
-    // Workers
-    if (inArrJS(['MW','BC','BM'], USER_ROLE) && d.status === 'In Progress') actions = workerActions;
+    if (USER_ROLE === 'A'  && d.status === 'Approved')         { actions = mActions; showAssign = true; }
+    if (USER_ROLE === 'A'  && d.status === 'In Progress')      actions = mActions;
+    if (inArrJS(['MD','BC','BM'], USER_ROLE) && d.status === 'In Progress') actions = workerActions;
 
     // Assignment panel
     const assignPanel = document.getElementById('assign-panel');
@@ -1635,10 +1536,7 @@ function openDetailModal(d) {
                     return;
                 }
                 const assignees = checked.map(cb => ({ email: cb.dataset.email, name: cb.dataset.name }));
-                // Determine assign action based on role and order type
-                let assignAction = 'mt_assign';
-                if (USER_ROLE === 'MM' || (USER_ROLE === 'A' && d.type === 'Maintenance')) assignAction = 'mm_assign';
-                submitAction(d.id, assignAction, noteTA.value.trim(), assignBtn, actionMsg, d, assignees);
+                submitAction(d.id, 'm_assign', noteTA.value.trim(), assignBtn, actionMsg, d, assignees);
             });
             btnWrap.appendChild(assignBtn);
         }
@@ -1649,20 +1547,18 @@ function openDetailModal(d) {
     document.getElementById('detail-overlay').classList.add('open');
 }
 
-// Priority changes are bundled into the action submit — no standalone save needed
-
 function buildAssignPanel() {
     const list    = document.getElementById('assign-list');
     const search  = document.getElementById('assign-search');
     const counter = document.getElementById('assign-count');
-    const roleLabels = { MW: 'Maintenance Worker', BC: 'Building Custodian', BM: 'Building Maintenance' };
-    const groups     = { MW: [], BC: [], BM: [] };
+    const roleLabels = { MD: 'Maintenance Dept', BC: 'Building Custodian', BM: 'Building Maintenance' };
+    const groups     = { MD: [], BC: [], BM: [] };
     ASSIGNABLE_WORKERS.forEach(function(w) { if (groups[w.role]) groups[w.role].push(w); });
 
     function render(filter) {
         list.innerHTML = '';
         const f = (filter || '').toLowerCase();
-        ['MW','BC','BM'].forEach(function(role) {
+        ['MD','BC','BM'].forEach(function(role) {
             const workers = groups[role].filter(function(w) {
                 return !f || (w.first_name + ' ' + w.last_name).toLowerCase().includes(f);
             });
@@ -1674,7 +1570,7 @@ function buildAssignPanel() {
             workers.forEach(function(w) {
                 const item = document.createElement('label');
                 item.className = 'assign-item';
-                const meta = (role !== 'MW' && w.building) ? w.building : 'Corp-wide';
+                const meta = (role !== 'MD' && w.building) ? w.building : 'Corp-wide';
                 item.innerHTML =
                     '<input type="checkbox" class="assign-checkbox" data-email="' + w.email + '" data-name="' + w.first_name + ' ' + w.last_name + '">' +
                     '<span class="assign-item-name">' + w.first_name + ' ' + w.last_name + '</span>' +
@@ -1697,24 +1593,16 @@ function buildAssignPanel() {
     render('');
 }
 
-// Priority pill clicks handled per-modal-open in openDetailModal
-
 function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
     btn.disabled = true;
     const orig = btn.textContent;
     btn.textContent = 'Saving…';
     msgEl.style.display = 'none';
 
-    const selectedPriPill = document.querySelector('.action-pri-pill.sel');
-    const newPriority = selectedPriPill ? selectedPriPill.dataset.p : '';
-    const priorityChanged = newPriority && rowData && newPriority !== rowData.priority;
-
     const fd = new FormData();
-    fd.append('action',       action);
-    fd.append('order_id',     orderId);
-    fd.append('note',         note);
-    fd.append('old_priority', rowData ? (rowData.priority || '') : '');
-    if (priorityChanged) fd.append('new_priority', newPriority);
+    fd.append('action',   action);
+    fd.append('order_id', orderId);
+    fd.append('note',     note);
     if (assignees && assignees.length > 0) {
         fd.append('assignees', JSON.stringify(assignees));
     }
@@ -1744,35 +1632,20 @@ function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
                 statusEl.className   = 'badge ' + (statusClassMap[res.new_status] || 'badge-pending');
                 statusEl.textContent = res.new_status;
                 const notesEl = document.getElementById('d-notes');
+                const notesSection = document.getElementById('d-notes-section');
                 const existing = notesEl.textContent.trim();
-                const wasEmpty = existing === 'No activity yet.';
-                notesEl.textContent = wasEmpty ? res.log_entry : existing + '\n' + res.log_entry;
-                notesEl.style.color = '#6b7a8d';
-                if (res.new_priority) {
-                    const priMap = {Low:'pri-low',Mid:'pri-mid',High:'pri-high',Urgent:'pri-urgent'};
-                    document.querySelectorAll('.wo-row').forEach(function(row) {
-                        if (row.dataset.id === String(orderId)) {
-                            row.dataset.priority = res.new_priority;
-                            const priSpan = row.querySelector('td .pri');
-                            if (priSpan) { priSpan.className = 'pri ' + (priMap[res.new_priority] || 'pri-low'); priSpan.textContent = res.new_priority; }
-                        }
-                    });
-                    const priEl = document.getElementById('d-priority-badge');
-                    priEl.className = 'pri ' + (priMap[res.new_priority] || 'pri-low');
-                    priEl.textContent = res.new_priority;
-                }
+                notesEl.textContent = existing ? existing + '\n' + res.log_entry : res.log_entry;
+                notesSection.style.display = '';
+                document.getElementById('action-panel').style.display = 'none';
+                document.getElementById('assign-panel').style.display = 'none';
                 document.getElementById('action-note').value = '';
                 msgEl.style.display = 'none';
-                setTimeout(function() { closeDetailModal(); }, 400);
                 const badge = document.querySelector('.notif-badge');
                 if (badge) {
                     const cur = parseInt(badge.textContent) || 1;
                     if (cur <= 1) badge.remove();
                     else badge.textContent = cur - 1;
                 }
-                // Remove this WO from the notification dropdown
-                const notifItem = document.querySelector('.notif-item[data-wo="' + (rowData ? rowData.wo : '') + '"]');
-                if (notifItem) notifItem.remove();
             } else {
                 msgEl.style.display = '';
                 msgEl.style.color   = '#dc2626';
