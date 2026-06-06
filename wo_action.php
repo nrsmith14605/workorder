@@ -39,20 +39,20 @@ if (!$action || !$order_id) {
 
 // ── Role → allowed actions ──────────────────────────────────────────────────
 $allowed = [
-    'BT' => ['bt_complete', 'bt_reject', 'bt_approve'],
-    'BP' => ['bp_approve', 'bp_reject', 'bp_complete', 'priority_only'],
-    'MT' => ['mt_assign', 'mt_complete', 'mt_reject', 'priority_only',
+    'BT' => ['bt_complete', 'bt_reject', 'bt_approve', 'note_only'],
+    'BP' => ['bp_approve', 'bp_reject', 'bp_complete', 'note_only'],
+    'MT' => ['mt_assign', 'mt_complete', 'mt_reject', 'note_only',
              'bt_complete', 'bt_reject', 'bt_approve', 'bp_approve', 'bp_reject', 'bp_complete'],
-    'MM' => ['mm_assign', 'mm_complete', 'mm_reject', 'priority_only',
+    'MM' => ['mm_assign', 'mm_complete', 'mm_reject', 'note_only',
              'bp_approve', 'bp_reject', 'bp_complete'],
     'A'  => ['bt_complete', 'bt_reject', 'bt_approve',
              'bp_approve', 'bp_reject', 'bp_complete',
              'mt_assign', 'mt_complete', 'mt_reject',
              'mm_assign', 'mm_complete', 'mm_reject',
-             'worker_complete', 'priority_only'],
-    'MW' => ['worker_complete'],
-    'BC' => ['worker_complete'],
-    'BM' => ['worker_complete'],
+             'worker_complete', 'note_only'],
+    'MW' => ['worker_complete', 'note_only'],
+    'BC' => ['worker_complete', 'note_only'],
+    'BM' => ['worker_complete', 'note_only'],
 ];
 
 if (!in_array($action, $allowed[$user_role] ?? [])) {
@@ -123,8 +123,9 @@ $actor_role_label = $role_labels[$user_role] ?? $user_role;
 
 // ── New status map ──────────────────────────────────────────────────────────
 $status_map = [
-    'priority_only'   => null,
-    'bt_approve'      => 'Pending Approval',
+    'note_only'       => null,  // status unchanged
+    'priority_only'   => null,  // status unchanged
+    'bt_approve'      => 'Approved',
     'bt_reject'       => 'Rejected',
     'bt_complete'     => 'Completed',
     'bp_approve'      => 'Approved',
@@ -161,6 +162,7 @@ $new_handler = array_key_exists($action, $handler_map) ? $handler_map[$action] :
 
 // ── Action log labels ───────────────────────────────────────────────────────
 $action_labels = [
+    'note_only'       => 'Note added',
     'priority_only'   => 'Priority updated',
     'bt_approve'      => 'Approved — escalated to Building Principal',
     'bt_reject'       => 'Rejected',
@@ -223,14 +225,20 @@ if ($resolved_by !== null) {
     );
     $stmt->bind_param('sssssi', $new_status, $new_handler, $new_priority, $new_priority, $log_entry, $order_id);
 }
-// Skip email sending for priority_only actions
-if ($action === 'priority_only') {
+// note_only and priority_only — update DB and return early, no emails
+if (in_array($action, ['note_only', 'priority_only'])) {
+    $stmt = $db->prepare(
+        "UPDATE orders SET priority=IF(?='',priority,?), notes=CONCAT(COALESCE(notes,''),?) WHERE id=?"
+    );
+    $stmt->bind_param('sssi', $new_priority, $new_priority, $log_entry, $order_id);
+    $stmt->execute();
+    $stmt->close();
     $db->close();
     echo json_encode([
         'success'      => true,
-        'message'      => 'Priority updated.',
-        'new_status'   => $new_status,
-        'new_priority' => $new_priority,
+        'message'      => 'Saved.',
+        'new_status'   => $current_status,
+        'new_priority' => $priority_changed ? $new_priority : null,
         'log_entry'    => ltrim($log_entry, "\n"),
     ]);
     exit;
