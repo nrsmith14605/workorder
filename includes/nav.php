@@ -485,6 +485,8 @@ select.rpt-input{
     const profileDd = document.getElementById('profile-dd');
     avatarBtn.addEventListener('click', function(e) {
         e.stopPropagation();
+        const notifDd = document.getElementById('notif-dd');
+        if (notifDd) notifDd.classList.remove('open');
         profileDd.classList.toggle('open');
     });
     document.addEventListener('click', function(e) {

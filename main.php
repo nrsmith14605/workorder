@@ -1191,7 +1191,8 @@ if (notifBtn) {
     notifBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         notifDd.classList.toggle('open');
-        profileDd.classList.remove('open');
+        const _profileDd = document.getElementById('profile-dd');
+        if (_profileDd) _profileDd.classList.remove('open');
     });
     document.addEventListener('click', function(e) {
         if (!notifDd.contains(e.target) && e.target !== notifBtn) notifDd.classList.remove('open');
