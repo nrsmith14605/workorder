@@ -26,6 +26,8 @@ $user_building = $_SESSION['user_building'] ?? null;
 
 // ── Handle work order submission ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submit_wo') {
+    ini_set('display_errors', 0);
+    ob_start();
     header('Content-Type: application/json');
     require_once __DIR__ . '/../../wo_config.php';
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -49,22 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
 
     if ($type === 'Technology') $purpose = 'Technology';
     if (!$type || !$building || !$room || !$purpose || !$problem_type || !$description || !$priority) {
-        echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
+        ob_end_clean(); echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
         exit;
     }
 
-    if (!empty($_FILES['photo']['name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-        $allowed_exts = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
-        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed_exts)) {
-            $upload_dir = __DIR__ . '/wo_imgs/';
-            if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-            $temp_uid  = substr(uniqid(), -6);
-            $datestamp = date('Ymd');
-            $filename  = 'WO-PENDING_' . $datestamp . '_' . $temp_uid . '.' . $ext;
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_dir . $filename)) {
-                $photo_path = 'wo_imgs/' . $filename;
-            }
+    if (!empty($_FILES['photos']['name'][0])) {
+        require_once __DIR__ . '/includes/image_upload.php';
+        $saved = process_uploaded_images($_FILES['photos'], __DIR__ . '/wo_imgs/');
+        if (!empty($saved)) {
+            $photo_path = implode('||', $saved);
         }
     }
 
@@ -77,17 +72,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
         $wo_num    = 'WO-' . str_pad($insert_id, 6, '0', STR_PAD_LEFT);
 
         if ($photo_path !== null) {
-            $ext_final    = pathinfo($photo_path, PATHINFO_EXTENSION);
-            $new_filename = $wo_num . '_' . date('Ymd') . '_' . substr(uniqid(), -6) . '.' . $ext_final;
-            $old_full     = __DIR__ . '/' . $photo_path;
-            $new_full     = __DIR__ . '/wo_imgs/' . $new_filename;
-            if (rename($old_full, $new_full)) {
-                $photo_path = 'wo_imgs/' . $new_filename;
-                $upd = $conn->prepare("UPDATE orders SET photo_path = ? WHERE id = ?");
-                $upd->bind_param('si', $photo_path, $insert_id);
-                $upd->execute();
-                $upd->close();
+            $new_paths = [];
+            foreach (explode('||', $photo_path) as $p) {
+                $new_filename = $wo_num . '_' . date('Ymd') . '_' . substr(uniqid(), -6) . '.jpg';
+                $old_full     = __DIR__ . '/' . $p;
+                $new_full     = __DIR__ . '/wo_imgs/' . $new_filename;
+                $new_paths[]  = rename($old_full, $new_full) ? 'wo_imgs/' . $new_filename : $p;
             }
+            $photo_path = implode('||', $new_paths);
+            $upd = $conn->prepare("UPDATE orders SET photo_path = ? WHERE id = ?");
+            $upd->bind_param('si', $photo_path, $insert_id);
+            $upd->execute();
+            $upd->close();
         }
 
         // Set initial current_handler based on order type
@@ -127,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
             );
         }
 
-        echo json_encode(['success' => true, 'wo_num' => $wo_num, 'photo_path' => $photo_path ?? '']);
+        ob_end_clean(); echo json_encode(['success' => true, 'wo_num' => $wo_num, 'photo_path' => $photo_path ?? '']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Database error. Please try again.']);
+        ob_end_clean(); echo json_encode(['success' => false, 'message' => 'Database error. Please try again.']);
     }
 
     $stmt->close();
@@ -316,6 +312,7 @@ $current_page = 'main';
 <title>Warrick County – Work Order Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
@@ -570,6 +567,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .upload-zone.has-file i{color:var(--cyan)}
 .upload-zone.drag-over{border-color:var(--cyan);background:var(--cyan-light);color:var(--cyan-dark);border-style:solid}
 .upload-zone small{display:block;font-size:11px;margin-top:5px;color:#aab0bb}
+#upload-preview{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.img-thumb-preview{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e8ecf0;flex-shrink:0}
+.img-thumb-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb-remove{position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+@keyframes progress-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+#upload-progress-bar.processing{background:linear-gradient(90deg,var(--cyan) 0%,#a8eeff 50%,var(--cyan) 100%);background-size:200% 100%;animation:progress-shimmer 1.5s ease-in-out infinite}
 
 /* buttons */
 .btn{padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;border:none;display:inline-flex;align-items:center;gap:7px;transition:all .12s}
@@ -613,8 +616,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .detail-field p{font-size:13px;color:#1a1a2e;font-weight:500;line-height:1.5}
 .detail-field.full{grid-column:1/-1}
 .detail-desc{background:#f8f9fa;border-radius:9px;padding:8px 12px;font-size:13px;color:#3d4f5e;line-height:1.6;white-space:pre-wrap}
-.attachment-thumb{width:100%;border-radius:9px;border:1px solid #e8ecf0;overflow:hidden;background:#f8f9fa;display:flex;align-items:center;justify-content:center;min-height:72px}
-.attachment-thumb img{width:100%;height:auto;display:block}
+.attachment-thumb{display:flex;flex-wrap:wrap;gap:4px;padding:6px;background:#f8f9fa;border-radius:9px;border:1px solid #e8ecf0;min-height:72px}
+.attachment-thumb a{display:block;width:60px;height:60px;border-radius:6px;overflow:hidden;flex-shrink:0;border:1.5px solid #e8ecf0}
+.attachment-thumb a img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;transition:opacity .15s}
+.attachment-thumb a:hover img{opacity:.8}
 .attachment-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;color:#aab0bb;gap:8px;font-size:12px}
 .attachment-placeholder i{font-size:28px}
 .status-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -955,17 +960,24 @@ if (empty($orders)): ?>
                             <input type="hidden" id="f-priority" name="priority" value="">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Photo (optional)</label>
+                            <label class="form-label">Photos (optional)</label>
                             <div class="upload-zone" id="upload-zone">
                                 <i class="ti ti-photo-up" id="upload-icon" aria-hidden="true"></i>
-                                <span id="upload-label">Click or drag a photo to attach</span>
-                                <small>JPG, PNG, WEBP or HEIC · Max 10 MB</small>
+                                <span id="upload-label">Click or drag photos to attach</span>
+                                <small>JPG, PNG, WEBP or HEIC · Up to 5 photos · 10 MB each</small>
                             </div>
-                            <input type="file" id="f-photo" name="photo" accept="image/*" style="display:none">
+                            <div id="upload-preview"></div>
+                            <input type="file" id="f-photo" name="photos[]" accept="image/*" multiple style="display:none">
                         </div>
                     </div><!-- /modal-col-right -->
                 </div><!-- /modal-cols -->
             </form>
+        </div>
+        <div id="upload-progress-wrap" style="display:none;padding:10px 24px 2px">
+            <div style="background:#e8ecf0;border-radius:99px;height:6px;overflow:hidden">
+                <div id="upload-progress-bar" style="height:100%;width:0%;background:var(--cyan);border-radius:99px;transition:width .25s ease"></div>
+            </div>
+            <div id="upload-progress-label" style="font-size:11px;color:#6b7a8d;margin-top:5px;text-align:center">Uploading…</div>
         </div>
         <div class="modal-footer" id="modal-footer">
             <button class="btn btn-ghost" id="cancel-modal">Cancel</button>
@@ -1229,9 +1241,12 @@ function openModal(type) {
     document.querySelector('.time-range-sep').style.display = '';
     document.getElementById('f-priority').value = '';
     document.querySelectorAll('.pri-pill').forEach(p => p.classList.remove('sel'));
-    document.getElementById('upload-label').textContent = 'Click or drag a photo here';
-    document.getElementById('upload-zone').classList.remove('has-file');
-    document.getElementById('upload-icon').className = 'ti ti-photo-up';
+    selectedFiles = [];
+    renderPreviews();
+    updateZoneState();
+    document.getElementById('upload-progress-wrap').style.display = 'none';
+    document.getElementById('upload-progress-bar').style.width = '0%';
+    document.getElementById('upload-progress-bar').classList.remove('processing');
     document.querySelectorAll('.maint-only').forEach(function(el) { el.classList.remove('hidden'); });
     document.getElementById('field-time').classList.remove('hidden');
     document.getElementById('field-purpose').classList.toggle('hidden', !isMaint);
@@ -1296,25 +1311,81 @@ document.querySelectorAll('.pri-pill').forEach(function(pill) {
 })();
 
 // ── Photo upload zone ─────────────────────────────────────────
-const uploadZone  = document.getElementById('upload-zone');
-const fileInput   = document.getElementById('f-photo');
-const uploadLabel = document.getElementById('upload-label');
-const uploadIcon  = document.getElementById('upload-icon');
-if (uploadZone) {
-    uploadZone.addEventListener('click', function () { fileInput.click(); });
-    fileInput.addEventListener('change', function () { if (this.files[0]) setUploadedFile(this.files[0]); });
-    uploadZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); this.classList.add('drag-over'); });
-    uploadZone.addEventListener('dragleave', function (e) { e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over'); });
-    uploadZone.addEventListener('drop', function (e) {
-        e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) { const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files; setUploadedFile(file); }
+const uploadZone    = document.getElementById('upload-zone');
+const fileInput     = document.getElementById('f-photo');
+const uploadLabel   = document.getElementById('upload-label');
+const uploadIcon    = document.getElementById('upload-icon');
+const uploadPreview = document.getElementById('upload-preview');
+let selectedFiles   = [];
+const MAX_PHOTOS    = 5;
+const MAX_BYTES     = 10 * 1024 * 1024;
+
+function renderPreviews() {
+    if (!uploadPreview) return;
+    uploadPreview.innerHTML = '';
+    selectedFiles.forEach(function(file, idx) {
+        const wrap = document.createElement('div');
+        wrap.className = 'img-thumb-preview';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = file.name;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'thumb-remove';
+        btn.textContent = '×';
+        btn.setAttribute('aria-label', 'Remove ' + file.name);
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            selectedFiles.splice(idx, 1);
+            renderPreviews();
+            updateZoneState();
+        });
+        wrap.appendChild(img);
+        wrap.appendChild(btn);
+        uploadPreview.appendChild(wrap);
     });
+    uploadPreview.style.display = selectedFiles.length ? 'flex' : 'none';
 }
-function setUploadedFile(file) {
-    uploadLabel.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
-    uploadZone.classList.add('has-file');
-    uploadIcon.className = 'ti ti-circle-check';
+
+function updateZoneState() {
+    const n = selectedFiles.length;
+    if (n === 0) {
+        uploadLabel.textContent = 'Click or drag photos to attach';
+        uploadZone.classList.remove('has-file');
+        uploadIcon.className = 'ti ti-photo-up';
+    } else {
+        uploadLabel.textContent = n === 1 ? '1 photo selected' : n + ' photos selected';
+        uploadZone.classList.add('has-file');
+        uploadIcon.className = 'ti ti-circle-check';
+    }
+}
+
+function addFiles(newFiles) {
+    let skipped = 0;
+    Array.from(newFiles).forEach(function(f) {
+        if (selectedFiles.length >= MAX_PHOTOS) return;
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (!['jpg','jpeg','png','webp','heic'].includes(ext)) return;
+        if (f.size > MAX_BYTES) { skipped++; return; }
+        selectedFiles.push(f);
+    });
+    if (skipped) alert(skipped + ' photo(s) exceeded 10 MB and were skipped.');
+    renderPreviews();
+    updateZoneState();
+}
+
+if (uploadZone) {
+    uploadZone.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) addFiles(this.files);
+        this.value = '';
+    });
+    uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); this.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over'); });
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault(); e.stopPropagation(); this.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+    });
 }
 
 // ── Problem Type → "Other" field ──────────────────────────────
@@ -1347,13 +1418,24 @@ if (submitWoBtn) {
         if (problem === 'Other' && !document.getElementById('f-problem-other').value.trim()) {
             alert('Please describe the problem type in the "Other" field.'); return;
         }
-        const submitBtn = document.getElementById('submit-wo');
+
+        const submitBtn    = document.getElementById('submit-wo');
+        const progressWrap = document.getElementById('upload-progress-wrap');
+        const progressBar  = document.getElementById('upload-progress-bar');
+        const progressLbl  = document.getElementById('upload-progress-label');
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="ti ti-loader" aria-hidden="true"></i> Submitting…';
+        progressBar.style.width = '0%';
+        progressBar.classList.remove('processing');
+        progressLbl.textContent = 'Submitting…';
+        progressWrap.style.display = '';
+
         const formData = new FormData(document.getElementById('wo-form'));
         formData.append('action', 'submit_wo');
-        const photoFile = document.getElementById('f-photo').files[0];
-        if (photoFile) formData.set('photo', photoFile);
+        formData.delete('photos[]');
+        selectedFiles.forEach(function(f) { formData.append('photos[]', f); });
+
         const newType     = document.getElementById('f-type').value;
         const newBuilding = document.getElementById('f-building').value;
         const newRoom     = document.getElementById('f-room').value.trim();
@@ -1363,27 +1445,62 @@ if (submitWoBtn) {
         const newPurpose  = isMaint ? document.getElementById('f-purpose').value : 'Technology';
         const newProblem  = document.getElementById('f-problem-type').value;
         const newPriority = document.getElementById('f-priority').value;
-        fetch('', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(function(data) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
-                if (data.success) {
-                    document.getElementById('success-wo-num').textContent = data.wo_num;
-                    injectNewRow({ wo: data.wo_num, type: newType, building: newBuilding, room: newRoom,
-                        desc: newDesc, timeFrom: newTimeFrom, timeTo: newTimeTo, purpose: newPurpose,
-                        problem: newProblem, priority: newPriority, attachment: data.photo_path || '' });
-                    closeModal();
-                    document.getElementById('success-overlay').classList.add('open');
-                } else {
-                    alert(data.message || 'Submission failed. Please try again.');
+
+        // Per-image step animation: advance (100 / numFiles)% every second
+        let animTimer  = null;
+        let animPct    = 0;
+        const numFiles = selectedFiles.length;
+        if (numFiles > 0) {
+            const stepPct = Math.round(100 / numFiles);
+            const label   = numFiles === 1 ? 'Processing 1 image…' : 'Processing ' + numFiles + ' images…';
+            progressLbl.textContent = label;
+            animTimer = setInterval(function() {
+                animPct = Math.min(animPct + stepPct, 94);
+                progressBar.style.width = animPct + '%';
+                if (animPct >= 94) { clearInterval(animTimer); animTimer = null; }
+            }, 1000);
+        }
+
+        function resetBtn() {
+            if (animTimer) { clearInterval(animTimer); animTimer = null; }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
+            progressWrap.style.display = 'none';
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '', true);
+
+        xhr.onload = function() {
+            if (animTimer) { clearInterval(animTimer); animTimer = null; }
+            progressBar.style.width = '100%';
+            progressLbl.textContent = 'Done!';
+            setTimeout(function() {
+                resetBtn();
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        document.getElementById('success-wo-num').textContent = data.wo_num;
+                        injectNewRow({ wo: data.wo_num, type: newType, building: newBuilding, room: newRoom,
+                            desc: newDesc, timeFrom: newTimeFrom, timeTo: newTimeTo, purpose: newPurpose,
+                            problem: newProblem, priority: newPriority, attachment: data.photo_path || '' });
+                        closeModal();
+                        document.getElementById('success-overlay').classList.add('open');
+                    } else {
+                        alert(data.message || 'Submission failed. Please try again.');
+                    }
+                } catch(e) {
+                    alert('Submission failed. Please try again.');
                 }
-            })
-            .catch(function() {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Submit Work Order';
-                alert('Network error. Please check your connection and try again.');
-            });
+            }, 400);
+        };
+
+        xhr.onerror = function() {
+            resetBtn();
+            alert('Network error. Please check your connection and try again.');
+        };
+
+        xhr.send(formData);
     });
 }
 
@@ -1473,6 +1590,8 @@ const statusClassMap = {
 
 function inArrJS(arr, val) { return arr.indexOf(val) !== -1; }
 
+let detailLightbox = null;
+
 function openDetailModal(d) {
     const isMaint = d.type === 'Maintenance';
     document.getElementById('detail-icon').className    = 'modal-type-icon ' + (isMaint ? 'maint' : 'tech');
@@ -1506,8 +1625,15 @@ function openDetailModal(d) {
     statusEl.textContent = d.status || '—';
     const attachSection = document.getElementById('d-attachment-section');
     const attachWrap    = document.getElementById('d-attachment-wrap');
+    if (detailLightbox) { detailLightbox.destroy(); detailLightbox = null; }
     if (d.attachment && d.attachment.trim()) {
-        attachWrap.innerHTML = '<img src="' + d.attachment + '" alt="Work order attachment">';
+        const imgs = d.attachment.split('||').filter(function(p) { return p.trim(); });
+        attachWrap.innerHTML = imgs.map(function(p, i) {
+            return '<a class="wo-lightbox" href="' + p.trim() + '" data-gallery="wo-gallery" data-desc="Photo ' + (i + 1) + ' of ' + imgs.length + '">'
+                 + '<img src="' + p.trim() + '" alt="Work order photo ' + (i + 1) + '">'
+                 + '</a>';
+        }).join('');
+        detailLightbox = GLightbox({ selector: '.wo-lightbox', touchNavigation: true, loop: false });
         attachSection.style.display = '';
     } else {
         attachWrap.innerHTML = '';
@@ -1917,7 +2043,7 @@ function injectNewRow(d) {
     tr.dataset.priority   = d.priority;
     tr.dataset.status     = 'Pending Approval';
     tr.dataset.submitted  = dateStr;
-    tr.dataset.attachment = '';
+    tr.dataset.attachment = d.attachment || '';
     tr.dataset.notes      = '';
     tr.innerHTML = `
         <td><span class="wo-id">${d.wo}</span></td>
@@ -1964,5 +2090,6 @@ document.getElementById('detail-overlay').addEventListener('click', function(e){
 })();
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/glightbox/dist/js/glightbox.min.js"></script>
 </body>
 </html>

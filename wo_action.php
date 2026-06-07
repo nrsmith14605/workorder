@@ -182,7 +182,7 @@ $action_label = $action_labels[$action] ?? $action;
 
 // ── Build log entry ─────────────────────────────────────────────────────────
 $timestamp = date('m/d/Y g:i A');
-$log_entry = "\n[{$timestamp}] {$user_name} ({$actor_role_label}) → {$action_label}";
+$log_entry = "\n[{$timestamp}] {$user_name} ({$actor_role_label}) -- {$action_label}";
 
 $valid_priorities = ['Low', 'Mid', 'High', 'Urgent'];
 $priority_changed = in_array($new_priority, $valid_priorities) && $new_priority !== $order['priority'];
