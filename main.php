@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -206,24 +206,6 @@ if ($user_role === 'A') {
 }
 $db->close();
 
-// ── Fetch assignable workers for Manager assignment panel ─────
-$assignable_workers = [];
-if (in_array($user_role, ['MT', 'MM', 'A'])) {
-    $db3 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    $db3->set_charset('utf8mb4');
-    $res3 = $db3->query(
-        "SELECT first_name, last_name, email, role, building
-           FROM users
-          WHERE role IN ('MW','BC','BM')
-            AND active = 1
-          ORDER BY
-            FIELD(role,'MW','BC','BM'),
-            last_name, first_name"
-    );
-    if ($res3) while ($row = $res3->fetch_assoc()) $assignable_workers[] = $row;
-    $db3->close();
-}
-
 $current_page = 'main';
 ?>
 <!DOCTYPE html>
@@ -234,7 +216,6 @@ $current_page = 'main';
 <title>Warrick County – Work Order Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
@@ -511,40 +492,6 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 /* form spacing helper */
 .form-row .form-group{margin-bottom:0}
 .form-spacer{height:16px}
-
-/* ── ASSIGNMENT PANEL ── */
-.assign-search{width:100%;padding:8px 12px;border:1px solid #d0d5dd;border-radius:9px;font-size:13px;font-family:'Barlow',sans-serif;margin-bottom:10px}
-.assign-search:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
-.assign-list{max-height:220px;overflow-y:auto;border:1px solid #e8ecf0;border-radius:9px;background:#fff}
-.assign-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
-.assign-item:last-child{border-bottom:none}
-.assign-item:hover{background:#f0f8fb}
-.assign-item input[type=checkbox]{accent-color:var(--cyan);width:15px;height:15px;flex-shrink:0}
-.assign-item-name{font-size:13px;font-weight:600;color:#1a1a2e}
-.assign-item-meta{font-size:11px;color:#6b7a8d;margin-left:auto}
-.assign-role-group{padding:6px 14px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;background:#f8f9fa;border-bottom:1px solid #f0f4f8}
-.assign-selected-count{font-size:12px;color:var(--cyan-dark);font-weight:600;margin-bottom:8px;min-height:18px}
-
-/* ── DETAIL MODAL ── */
-.detail-modal{max-width:1000px}
-.detail-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start}
-.detail-col-left{padding-right:20px;border-right:1px solid #f0f4f8}
-.detail-col-right{padding-left:20px;display:flex;flex-direction:column;gap:0}
-@media(max-width:700px){.detail-two-col{grid-template-columns:1fr}.detail-col-left{padding-right:0;border-right:none;border-bottom:1px solid #f0f4f8;padding-bottom:16px;margin-bottom:4px}.detail-col-right{padding-left:0}}
-.detail-section{margin-bottom:12px}
-.detail-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aab0bb;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f4f8}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.detail-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;display:block;margin-bottom:3px}
-.detail-field p{font-size:13px;color:#1a1a2e;font-weight:500;line-height:1.5}
-.detail-field.full{grid-column:1/-1}
-.detail-desc{background:#f8f9fa;border-radius:9px;padding:8px 12px;font-size:13px;color:#3d4f5e;line-height:1.6;white-space:pre-wrap}
-.attachment-thumb{display:flex;flex-wrap:wrap;gap:4px;padding:6px;background:#f8f9fa;border-radius:9px;border:1px solid #e8ecf0;min-height:72px}
-.attachment-thumb a{display:block;width:60px;height:60px;border-radius:6px;overflow:hidden;flex-shrink:0;border:1.5px solid #e8ecf0}
-.attachment-thumb a img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;transition:opacity .15s}
-.attachment-thumb a:hover img{opacity:.8}
-.attachment-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;color:#aab0bb;gap:8px;font-size:12px}
-.attachment-placeholder i{font-size:28px}
-.status-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
 /* ── FOOTER ── */
 .site-footer{
@@ -911,176 +858,6 @@ if (empty($orders)): ?>
 </div>
 
 <!-- ============================================================
-     WORK ORDER DETAIL MODAL
-============================================================ -->
-<div class="modal-overlay" id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
-    <div class="modal detail-modal">
-        <div class="modal-header">
-            <div class="modal-header-left">
-                <div class="modal-type-icon" id="detail-icon">
-                    <i id="detail-icon-i" class="ti ti-tool" aria-hidden="true"></i>
-                </div>
-                <div>
-                    <div class="modal-title" id="detail-modal-title">Work Order Details</div>
-                    <div class="modal-subtitle" id="detail-subtitle">Loading…</div>
-                </div>
-            </div>
-            <button class="close-btn" id="close-detail" aria-label="Close">
-                <i class="ti ti-x" aria-hidden="true"></i>
-            </button>
-        </div>
-        <div class="modal-body" style="overflow-y:auto">
-            <div class="detail-two-col">
-
-                <!-- LEFT COLUMN: order info + action panel -->
-                <div class="detail-col-left">
-
-                    <div class="detail-section">
-                        <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-                            <p id="d-wo" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--cyan)"></p>
-                            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                                <span id="d-priority-badge"></span>
-                                <span id="d-status-badge"></span>
-                            </div>
-                        </div>
-                        <div class="detail-grid">
-                            <div class="detail-field">
-                                <label>Submitted By</label>
-                                <p id="d-submitter"></p>
-                                <p id="d-email" style="font-size:11px;color:#6b7a8d;margin-top:2px"></p>
-                            </div>
-                            <div class="detail-field">
-                                <label>Submitted</label>
-                                <p id="d-submitted"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="detail-section">
-                        <div class="detail-section-title">Location</div>
-                        <div class="detail-grid">
-                            <div class="detail-field">
-                                <label>Building</label>
-                                <p id="d-building"></p>
-                            </div>
-                            <div class="detail-field">
-                                <label>Room / Area</label>
-                                <p id="d-room"></p>
-                            </div>
-                            <div class="detail-field" id="d-time-wrap">
-                                <label>Time Available</label>
-                                <p id="d-time"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="detail-section">
-                        <div class="detail-section-title">Request Details</div>
-                        <div class="detail-grid" style="margin-bottom:12px">
-                            <div class="detail-field" id="d-purpose-wrap">
-                                <label>Purpose</label>
-                                <p id="d-purpose"></p>
-                            </div>
-                            <div class="detail-field" id="d-problem-wrap">
-                                <label>Problem Type</label>
-                                <p id="d-problem"></p>
-                            </div>
-                        </div>
-                        <div class="detail-field full">
-                            <label>Description</label>
-                            <div class="detail-desc" id="d-desc"></div>
-                        </div>
-                    </div>
-
-                    <!-- Attachment — only shown if image exists -->
-                    <div class="detail-section" id="d-attachment-section" style="display:none">
-                        <div class="detail-section-title">Attachment</div>
-                        <div class="attachment-thumb" id="d-attachment-wrap"></div>
-                    </div>
-
-                    <!-- Priority panel — shown for BP, MT, MM, A -->
-                    <div id="action-priority-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:8px">Change Priority</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button type="button" class="action-pri-pill" data-p="Low"    style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Low</button>
-                            <button type="button" class="action-pri-pill" data-p="Mid"    style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Mid</button>
-                            <button type="button" class="action-pri-pill" data-p="High"   style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">High</button>
-                            <button type="button" class="action-pri-pill" data-p="Urgent" style="padding:7px 16px;border-radius:9px;border:1.5px solid #e8ecf0;font-size:13px;font-weight:700;cursor:pointer;background:transparent;font-family:'Barlow',sans-serif;color:#6b7a8d">Urgent</button>
-                        </div>
-                    </div>
-
-                    <!-- Note panel — always visible for non-U -->
-                    <div id="action-panel" style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;margin-bottom:10px">Add Note (optional)</div>
-                        <textarea id="action-note" rows="3" placeholder="Add a note to be included with this action…" style="width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 13px;font-size:13px;font-family:'Barlow',sans-serif;resize:vertical;margin-bottom:8px"></textarea>
-                        <button type="button" id="save-note-btn" style="display:none;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;border:1.5px solid #d0d5dd;background:transparent;color:#6b7a8d">💬 Add note and autosave to log</button>
-                        <div id="action-msg" style="font-size:12px;margin-top:10px;display:none"></div>
-                    </div>
-
-                </div><!-- /detail-col-left -->
-
-                <!-- RIGHT COLUMN: activity log + assign panel + action buttons -->
-                <div class="detail-col-right" style="display:flex;flex-direction:column">
-
-                    <!-- Activity Log — always shown -->
-                    <div class="detail-section">
-                        <div class="detail-section-title">Activity Log</div>
-                        <div class="detail-desc" id="d-notes" style="white-space:pre-wrap;font-size:12px;color:#6b7a8d;line-height:1.7;min-height:60px"></div>
-                    </div>
-
-                    <!-- Assignment panel — shown to MT/MM/A when status is Approved/In Progress -->
-                    <div id="assign-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb">Assign To</div>
-                            <div class="assign-selected-count" id="assign-count" style="font-size:12px;color:var(--cyan-dark);font-weight:600"></div>
-                        </div>
-                        <input type="text" class="assign-search" id="assign-search" placeholder="Search workers…">
-                        <div class="assign-list" id="assign-list"></div>
-                    </div>
-
-                    <!-- Action buttons — bottom of right column -->
-                    <div id="action-buttons-panel" style="display:none;margin-top:auto;padding-top:16px;border-top:1px solid #f0f4f8;margin-top:16px">
-                        <div id="action-buttons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-                    </div>
-
-                </div><!-- /detail-col-right -->
-
-            </div><!-- /detail-two-col -->
-        </div>
-
-        <div class="modal-footer">
-            <button class="btn btn-ghost" id="close-detail-footer">Close</button>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================================
-     CONFIRMATION MODAL
-============================================================ -->
-<div class="modal-overlay" id="confirm-overlay" role="dialog" aria-modal="true">
-    <div class="modal" style="max-width:420px">
-        <div class="modal-header">
-            <div class="modal-header-left">
-                <div class="modal-type-icon" id="confirm-icon" style="background:#fef3c7">
-                    <i class="ti ti-alert-triangle" style="color:#b45309" aria-hidden="true"></i>
-                </div>
-                <div>
-                    <div class="modal-title" id="confirm-title">Confirm Action</div>
-                    <div class="modal-subtitle" id="confirm-subtitle"></div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-body" style="padding:20px 26px">
-            <p id="confirm-body" style="font-size:14px;color:#3d4f5e;line-height:1.6"></p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
-            <button class="btn" id="confirm-ok" style="background:#dc2626;color:#fff">Confirm</button>
-        </div>
-    </div>
-</div>
-
-<!-- ============================================================
      SUCCESS MODAL
 ============================================================ -->
 <div class="modal-overlay" id="success-overlay" role="dialog" aria-modal="true">
@@ -1114,19 +891,14 @@ const USER_EMAIL = '<?= htmlspecialchars($user_email, ENT_QUOTES) ?>';
 const USER_NAME  = '<?= htmlspecialchars($submitted_name, ENT_QUOTES) ?>';
 const USER_ROLE  = '<?= htmlspecialchars($user_role, ENT_QUOTES) ?>';
 const ROLE_LABEL = '<?= htmlspecialchars($role_label, ENT_QUOTES) ?>';
-const ASSIGNABLE_WORKERS = <?= json_encode($assignable_workers) ?>;
 
 // Profile dropdown handled by nav.php
 
-// ── Notification item clicks → open detail modal ─────────────
+// ── Notification item clicks → wo_detail.php ─────────────────
 document.querySelectorAll('.notif-item').forEach(function(item) {
     item.addEventListener('click', function() {
         document.getElementById('notif-dd').classList.remove('open');
-        const wo = this.dataset.wo;
-        const rows = document.querySelectorAll('.wo-row');
-        for (let i = 0; i < rows.length; i++) {
-            if (rows[i].dataset.wo === wo) { openDetailModal(rows[i].dataset); return; }
-        }
+        window.location.href = 'wo_detail.php?wo=' + encodeURIComponent(this.dataset.wo);
     });
 });
 
@@ -1484,443 +1256,6 @@ document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
     });
 });
 
-// ── Work Order Detail Modal ───────────────────────────────────
-const priClassMap = {'Low':'pri-low','Mid':'pri-mid','High':'pri-high','Urgent':'pri-urgent'};
-const statusClassMap = {
-    'Pending Approval':'badge-pending',
-    'Approved':'badge-approved',
-    'In Progress':'badge-inprogress',
-    'Completed':'badge-completed',
-    'Rejected':'badge-rejected',
-};
-
-function inArrJS(arr, val) { return arr.indexOf(val) !== -1; }
-
-let detailLightbox = null;
-
-function openDetailModal(d) {
-    const isMaint = d.type === 'Maintenance';
-    document.getElementById('detail-icon').className    = 'modal-type-icon ' + (isMaint ? 'maint' : 'tech');
-    document.getElementById('detail-icon-i').className  = 'ti ' + (isMaint ? 'ti-tool' : 'ti-device-laptop');
-    document.getElementById('detail-modal-title').textContent = d.type + ' Request';
-    document.getElementById('detail-subtitle').textContent    = d.wo;
-    document.getElementById('d-wo').textContent        = d.wo;
-    document.getElementById('d-submitter').textContent = d.name || d.email || '—';
-    document.getElementById('d-email').textContent     = d.email || '';
-    document.getElementById('d-submitted').textContent = d.submitted || '—';
-    document.getElementById('d-building').textContent  = d.building  || '—';
-    document.getElementById('d-room').textContent      = d.room      || '—';
-    document.getElementById('d-desc').textContent      = d.desc      || '—';
-    const timeWrap = document.getElementById('d-time-wrap');
-    if (d.timeFrom && d.timeTo) {
-        document.getElementById('d-time').textContent = d.timeFrom + ' – ' + d.timeTo;
-        timeWrap.style.display = '';
-    } else { timeWrap.style.display = 'none'; }
-    const purposeWrap = document.getElementById('d-purpose-wrap');
-    const problemWrap = document.getElementById('d-problem-wrap');
-    if (isMaint) {
-        document.getElementById('d-purpose').textContent = d.purpose || '—';
-        document.getElementById('d-problem').textContent = d.problem || '—';
-        purposeWrap.style.display = ''; problemWrap.style.display = '';
-    } else { purposeWrap.style.display = 'none'; problemWrap.style.display = 'none'; }
-    const priEl = document.getElementById('d-priority-badge');
-    priEl.className   = 'pri ' + (priClassMap[d.priority] || 'pri-low');
-    priEl.textContent = d.priority || '—';
-    const statusEl = document.getElementById('d-status-badge');
-    statusEl.className   = 'badge ' + (statusClassMap[d.status] || 'badge-pending');
-    statusEl.textContent = d.status || '—';
-    const attachSection = document.getElementById('d-attachment-section');
-    const attachWrap    = document.getElementById('d-attachment-wrap');
-    if (detailLightbox) { detailLightbox.destroy(); detailLightbox = null; }
-    if (d.attachment && d.attachment.trim()) {
-        const imgs = d.attachment.split('||').filter(function(p) { return p.trim(); });
-        attachWrap.innerHTML = imgs.map(function(p, i) {
-            return '<a class="wo-lightbox" href="' + p.trim() + '" data-gallery="wo-gallery" data-desc="Photo ' + (i + 1) + ' of ' + imgs.length + '">'
-                 + '<img src="' + p.trim() + '" alt="Work order photo ' + (i + 1) + '">'
-                 + '</a>';
-        }).join('');
-        detailLightbox = GLightbox({ selector: '.wo-lightbox', touchNavigation: true, loop: false });
-        attachSection.style.display = '';
-    } else {
-        attachWrap.innerHTML = '';
-        attachSection.style.display = 'none';
-    }
-
-// Notes / activity log — always visible, empty state if no entries yet
-    const notesEl = document.getElementById('d-notes');
-    notesEl.textContent = (d.notes && d.notes.trim()) ? d.notes.trim() : 'No activity yet.';
-    notesEl.style.color = (d.notes && d.notes.trim()) ? '#6b7a8d' : '#d0d5dd';
-
-    // Action panel — build role+status-aware buttons
-    const panel     = document.getElementById('action-panel');
-    const btnWrap   = document.getElementById('action-buttons');
-    const noteTA    = document.getElementById('action-note');
-    const actionMsg = document.getElementById('action-msg');
-    noteTA.value  = '';
-    actionMsg.style.display = 'none';
-    btnWrap.innerHTML = '';
-
-    const btActions = [
-        { label: '✓ Mark Completed', action: 'bt_complete', cls: 'btn-success' },
-        { label: '↑ Approve → Principal', action: 'bt_approve', cls: 'btn-primary' },
-        { label: '✕ Reject',          action: 'bt_reject',  cls: 'btn-danger'  },
-    ];
-    const bpActions = [
-        { label: '↑ Approve → Manager', action: 'bp_approve', cls: 'btn-primary' },
-        { label: '✓ Mark Completed',     action: 'bp_complete', cls: 'btn-success' },
-        { label: '✕ Reject',            action: 'bp_reject',  cls: 'btn-danger'  },
-    ];
-    const mtActions = [
-        { label: '✓ Mark Completed', action: 'mt_complete', cls: 'btn-success' },
-        { label: '✕ Reject',         action: 'mt_reject',   cls: 'btn-danger'  },
-    ];
-    const mmActions = [
-        { label: '✓ Mark Completed', action: 'mm_complete', cls: 'btn-success' },
-        { label: '✕ Reject',         action: 'mm_reject',   cls: 'btn-danger'  },
-    ];
-    const workerActions = [
-        { label: '✓ Mark Completed', action: 'worker_complete', cls: 'btn-success' },
-    ];
-
-    // Priority pills — shown for BP, MT, MM, A
-    const priorityPanel = document.getElementById('action-priority-panel');
-    if (inArrJS(['BP','MT','MM','A'], USER_ROLE)) {
-        priorityPanel.style.display = '';
-        const priPillColors = { Low:['#d1fae5','#10b981','#065f46'], Mid:['#dbeafe','#3b82f6','#1e40af'], High:['#fef3c7','#f59e0b','#92400e'], Urgent:['#fee2e2','#ef4444','#991b1b'] };
-        priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(p) {
-            p.classList.remove('sel');
-            p.style.background = 'transparent'; p.style.borderColor = '#e8ecf0'; p.style.color = '#6b7a8d';
-            if (p.dataset.p === d.priority) {
-                p.classList.add('sel');
-                const c = priPillColors[p.dataset.p];
-                if (c) { p.style.background = c[0]; p.style.borderColor = c[1]; p.style.color = c[2]; }
-            }
-        });
-        priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(p) {
-            p.onclick = function() {
-                priorityPanel.querySelectorAll('.action-pri-pill').forEach(function(x) {
-                    x.classList.remove('sel');
-                    x.style.background = 'transparent'; x.style.borderColor = '#e8ecf0'; x.style.color = '#6b7a8d';
-                });
-                p.classList.add('sel');
-                const c = priPillColors[p.dataset.p];
-                if (c) { p.style.background = c[0]; p.style.borderColor = c[1]; p.style.color = c[2]; }
-            };
-        });
-    } else {
-        priorityPanel.style.display = 'none';
-    }
-
-    let actions    = [];
-    let showAssign = false;
-    // BT: tech orders at Pending Approval
-    if (USER_ROLE === 'BT' && d.status === 'Pending Approval' && d.type === 'Technology') actions = btActions;
-    // BP: maintenance at Pending Approval (no BT step); tech at Approved (after BT)
-    if (USER_ROLE === 'BP' && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = bpActions;
-    if (USER_ROLE === 'BP' && d.status === 'Approved'         && d.type === 'Technology')  actions = bpActions;
-    // MT: approved tech orders (assign) or in-progress tech orders
-    if (USER_ROLE === 'MT' && d.status === 'Approved'    && d.type === 'Technology') { actions = mtActions; showAssign = true; }
-    if (USER_ROLE === 'MT' && d.status === 'In Progress' && d.type === 'Technology') { actions = mtActions; showAssign = true; }
-    // MM: approved maintenance orders (assign) or in-progress maintenance orders
-    if (USER_ROLE === 'MM' && d.status === 'Approved'    && d.type === 'Maintenance') { actions = mmActions; showAssign = true; }
-    if (USER_ROLE === 'MM' && d.status === 'In Progress' && d.type === 'Maintenance') { actions = mmActions; showAssign = true; }
-    // Admin: full override
-    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Maintenance') actions = bpActions;
-    if (USER_ROLE === 'A'  && d.status === 'Pending Approval' && d.type === 'Technology')  actions = btActions;
-    if (USER_ROLE === 'A'  && d.status === 'Approved' && d.type === 'Technology')   { actions = mtActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'Approved' && d.type === 'Maintenance')  { actions = mmActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'In Progress' && d.type === 'Technology')   { actions = mtActions; showAssign = true; }
-    if (USER_ROLE === 'A'  && d.status === 'In Progress' && d.type === 'Maintenance')  { actions = mmActions; showAssign = true; }
-    // Workers
-    if (inArrJS(['MW','BC','BM'], USER_ROLE) && d.status === 'In Progress') actions = workerActions;
-
-    // Assignment panel
-    const assignPanel = document.getElementById('assign-panel');
-    if (showAssign && ASSIGNABLE_WORKERS.length > 0) {
-        assignPanel.style.display = '';
-        buildAssignPanel();
-    } else {
-        assignPanel.style.display = 'none';
-    }
-
-    // Save Note button — visible for all roles except U, always
-    const saveNoteBtn = document.getElementById('save-note-btn');
-    if (USER_ROLE !== 'U') {
-        saveNoteBtn.style.display = '';
-        saveNoteBtn.dataset.orderId = d.id;
-    } else {
-        saveNoteBtn.style.display = 'none';
-    }
-
-    const confirmLabels = {
-        'bt_approve':      { title:'Approve & Escalate',  color:'var(--cyan)',  body:'This will approve the work order and send it to the Building Principal for review.' },
-        'bt_reject':       { title:'Reject Work Order',   color:'#dc2626',      body:'This will reject the work order. The submitter will be notified.' },
-        'bt_complete':     { title:'Mark as Completed',   color:'#059669',      body:'This will mark the work order as completed. The submitter will be notified.' },
-        'bp_approve':      { title:'Approve & Escalate',  color:'var(--cyan)',  body:'This will approve the work order and escalate it to the Manager.' },
-        'bp_reject':       { title:'Reject Work Order',   color:'#dc2626',      body:'This will reject the work order. The submitter will be notified.' },
-        'bp_complete':     { title:'Mark as Completed',   color:'#059669',      body:'This will mark the work order as completed. The submitter will be notified.' },
-        'mt_complete':     { title:'Mark as Completed',   color:'#059669',      body:'This will mark the work order as completed. The submitter will be notified.' },
-        'mt_reject':       { title:'Reject Work Order',   color:'#dc2626',      body:'This will reject the work order. The submitter will be notified.' },
-        'mm_complete':     { title:'Mark as Completed',   color:'#059669',      body:'This will mark the work order as completed. The submitter will be notified.' },
-        'mm_reject':       { title:'Reject Work Order',   color:'#dc2626',      body:'This will reject the work order. The submitter will be notified.' },
-        'worker_complete': { title:'Mark as Completed',   color:'#059669',      body:'This will mark the work order as completed. The submitter will be notified.' },
-    };
-
-    const actionBtnsPanel = document.getElementById('action-buttons-panel');
-    actionBtnsPanel.style.display = actions.length > 0 ? '' : 'none';
-    const styles = {
-        'btn-primary': 'background:var(--cyan);color:#fff',
-        'btn-success': 'background:#059669;color:#fff',
-        'btn-danger':  'background:#dc2626;color:#fff',
-    };
-    actions.forEach(function(a) {
-        const btn = document.createElement('button');
-        btn.setAttribute('style', 'padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Barlow\',sans-serif;border:none;' + (styles[a.cls] || ''));
-        btn.textContent = a.label;
-        btn.addEventListener('click', function() {
-            const cfg = confirmLabels[a.action];
-            if (cfg) {
-                showConfirm(cfg.title, d.wo, cfg.body, a.label, cfg.color, function() {
-                    submitAction(d.id, a.action, noteTA.value.trim(), btn, actionMsg, d, null);
-                });
-            } else {
-                submitAction(d.id, a.action, noteTA.value.trim(), btn, actionMsg, d, null);
-            }
-        });
-        btnWrap.appendChild(btn);
-    });
-    // Assign & Start button (only when showAssign)
-    if (showAssign) {
-        const assignBtn = document.createElement('button');
-        assignBtn.setAttribute('style', 'padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Barlow\',sans-serif;border:none;background:#7c3aed;color:#fff');
-        assignBtn.textContent = '→ Assign & Start';
-        assignBtn.addEventListener('click', function() {
-            const checked = Array.from(document.querySelectorAll('.assign-checkbox:checked'));
-            if (checked.length === 0) {
-                actionMsg.style.display = '';
-                actionMsg.style.color = '#dc2626';
-                actionMsg.textContent = 'Please select at least one worker to assign.';
-                return;
-            }
-            const assignees = checked.map(cb => ({ email: cb.dataset.email, name: cb.dataset.name }));
-            const names = assignees.map(a => a.name).join(', ');
-            let assignAction = 'mt_assign';
-            if (USER_ROLE === 'MM' || (USER_ROLE === 'A' && d.type === 'Maintenance')) assignAction = 'mm_assign';
-            showConfirm(
-                'Assign & Start Work',
-                d.wo,
-                'Assign to: ' + names + '. This will set the order to In Progress and notify each worker.',
-                '→ Assign & Start',
-                '#7c3aed',
-                function() {
-                    submitAction(d.id, assignAction, noteTA.value.trim(), assignBtn, actionMsg, d, assignees);
-                }
-            );
-        });
-        btnWrap.appendChild(assignBtn);
-    }
-
-    document.getElementById('detail-overlay').classList.add('open');
-}
-
-// ── Confirmation modal ────────────────────────────────────────
-let _confirmCallback = null;
-const confirmOverlay = document.getElementById('confirm-overlay');
-document.getElementById('confirm-cancel').addEventListener('click', function() {
-    confirmOverlay.classList.remove('open');
-    _confirmCallback = null;
-});
-document.getElementById('confirm-ok').addEventListener('click', function() {
-    confirmOverlay.classList.remove('open');
-    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
-});
-confirmOverlay.addEventListener('click', function(e) {
-    if (e.target === this) { confirmOverlay.classList.remove('open'); _confirmCallback = null; }
-});
-
-function showConfirm(title, subtitle, body, okLabel, okColor, callback) {
-    document.getElementById('confirm-title').textContent    = title;
-    document.getElementById('confirm-subtitle').textContent = subtitle;
-    document.getElementById('confirm-body').textContent     = body;
-    const okBtn = document.getElementById('confirm-ok');
-    okBtn.textContent  = okLabel;
-    okBtn.style.background = okColor;
-    _confirmCallback = callback;
-    confirmOverlay.classList.add('open');
-}
-
-// ── Save Note standalone ──────────────────────────────────────
-document.getElementById('save-note-btn').addEventListener('click', function() {
-    const noteTA = document.getElementById('action-note');
-    const note   = noteTA.value.trim();
-    if (!note) return;
-    const btn    = this;
-    const msgEl  = document.getElementById('action-msg');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    const fd = new FormData();
-    fd.append('action',   'note_only');
-    fd.append('order_id', btn.dataset.orderId);
-    fd.append('note',     note);
-    fetch('wo_action.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(function(res) {
-            btn.disabled = false;
-            btn.textContent = '💬 Save Note';
-            if (res.success) {
-                noteTA.value = '';
-                const notesEl = document.getElementById('d-notes');
-                const existing = notesEl.textContent.trim();
-                notesEl.textContent = (existing === 'No activity yet.') ? res.log_entry : existing + '\n' + res.log_entry;
-                notesEl.style.color = '#6b7a8d';
-                msgEl.style.display = '';
-                msgEl.style.color   = '#059669';
-                msgEl.textContent   = 'Note saved.';
-                setTimeout(function() { msgEl.style.display = 'none'; }, 2500);
-            } else {
-                msgEl.style.display = '';
-                msgEl.style.color   = '#dc2626';
-                msgEl.textContent   = res.message || 'Failed to save note.';
-            }
-        });
-});
-
-function buildAssignPanel() {
-    const list    = document.getElementById('assign-list');
-    const search  = document.getElementById('assign-search');
-    const counter = document.getElementById('assign-count');
-    const roleLabels = { MW: 'Maintenance Worker', BC: 'Building Custodian', BM: 'Building Maintenance' };
-    const groups     = { MW: [], BC: [], BM: [] };
-    ASSIGNABLE_WORKERS.forEach(function(w) { if (groups[w.role]) groups[w.role].push(w); });
-
-    function render(filter) {
-        list.innerHTML = '';
-        const f = (filter || '').toLowerCase();
-        ['MW','BC','BM'].forEach(function(role) {
-            const workers = groups[role].filter(function(w) {
-                return !f || (w.first_name + ' ' + w.last_name).toLowerCase().includes(f);
-            });
-            if (!workers.length) return;
-            const grpHdr = document.createElement('div');
-            grpHdr.className = 'assign-role-group';
-            grpHdr.textContent = roleLabels[role];
-            list.appendChild(grpHdr);
-            workers.forEach(function(w) {
-                const item = document.createElement('label');
-                item.className = 'assign-item';
-                const meta = (role !== 'MW' && w.building) ? w.building : 'Corp-wide';
-                item.innerHTML =
-                    '<input type="checkbox" class="assign-checkbox" data-email="' + w.email + '" data-name="' + w.first_name + ' ' + w.last_name + '">' +
-                    '<span class="assign-item-name">' + w.first_name + ' ' + w.last_name + '</span>' +
-                    '<span class="assign-item-meta">' + meta + '</span>';
-                item.querySelector('input').addEventListener('change', updateCount);
-                list.appendChild(item);
-            });
-        });
-    }
-
-    function updateCount() {
-        const n = document.querySelectorAll('.assign-checkbox:checked').length;
-        counter.textContent = n > 0 ? n + ' selected' : '';
-    }
-
-    search.value = '';
-    search.removeEventListener('input', search._renderHandler);
-    search._renderHandler = function() { render(this.value); };
-    search.addEventListener('input', search._renderHandler);
-    render('');
-}
-
-// Priority pill clicks handled per-modal-open in openDetailModal
-
-function submitAction(orderId, action, note, btn, msgEl, rowData, assignees) {
-    btn.disabled = true;
-    const orig = btn.textContent;
-    btn.textContent = 'Saving…';
-    msgEl.style.display = 'none';
-
-    const selectedPriPill = document.querySelector('.action-pri-pill.sel');
-    const newPriority = selectedPriPill ? selectedPriPill.dataset.p : '';
-    const priorityChanged = newPriority && rowData && newPriority !== rowData.priority;
-
-    const fd = new FormData();
-    fd.append('action',       action);
-    fd.append('order_id',     orderId);
-    fd.append('note',         note);
-    fd.append('old_priority', rowData ? (rowData.priority || '') : '');
-    if (priorityChanged) fd.append('new_priority', newPriority);
-    if (assignees && assignees.length > 0) {
-        fd.append('assignees', JSON.stringify(assignees));
-    }
-
-    fetch('wo_action.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(function(res) {
-            btn.disabled = false;
-            btn.textContent = orig;
-            if (res.success) {
-                const rows = document.querySelectorAll('.wo-row');
-                rows.forEach(function(row) {
-                    if (row.dataset.id === String(orderId)) {
-                        row.dataset.status = res.new_status;
-                        row.dataset.filter = res.new_status;
-                        row.dataset.notes  = (row.dataset.notes || '') + '\n' + res.log_entry;
-                        const allBadges = row.querySelectorAll('td .badge');
-                        const statusBadge = allBadges[allBadges.length - 1];
-                        if (statusBadge) {
-                            statusBadge.className = 'badge ' + (statusClassMap[res.new_status] || 'badge-pending');
-                            statusBadge.textContent = res.new_status;
-                        }
-                    }
-                });
-                applyTable();
-                const statusEl = document.getElementById('d-status-badge');
-                statusEl.className   = 'badge ' + (statusClassMap[res.new_status] || 'badge-pending');
-                statusEl.textContent = res.new_status;
-                const notesEl = document.getElementById('d-notes');
-                const existing = notesEl.textContent.trim();
-                const wasEmpty = existing === 'No activity yet.';
-                notesEl.textContent = wasEmpty ? res.log_entry : existing + '\n' + res.log_entry;
-                notesEl.style.color = '#6b7a8d';
-                if (res.new_priority) {
-                    const priMap = {Low:'pri-low',Mid:'pri-mid',High:'pri-high',Urgent:'pri-urgent'};
-                    document.querySelectorAll('.wo-row').forEach(function(row) {
-                        if (row.dataset.id === String(orderId)) {
-                            row.dataset.priority = res.new_priority;
-                            const priSpan = row.querySelector('td .pri');
-                            if (priSpan) { priSpan.className = 'pri ' + (priMap[res.new_priority] || 'pri-low'); priSpan.textContent = res.new_priority; }
-                        }
-                    });
-                    const priEl = document.getElementById('d-priority-badge');
-                    priEl.className = 'pri ' + (priMap[res.new_priority] || 'pri-low');
-                    priEl.textContent = res.new_priority;
-                }
-                document.getElementById('action-note').value = '';
-                msgEl.style.display = 'none';
-                setTimeout(function() { closeDetailModal(); }, 400);
-                const badge = document.querySelector('.notif-badge');
-                if (badge) {
-                    const cur = parseInt(badge.textContent) || 1;
-                    if (cur <= 1) badge.remove();
-                    else badge.textContent = cur - 1;
-                }
-                // Remove this WO from the notification dropdown
-                const notifItem = document.querySelector('.notif-item[data-wo="' + (rowData ? rowData.wo : '') + '"]');
-                if (notifItem) notifItem.remove();
-            } else {
-                msgEl.style.display = '';
-                msgEl.style.color   = '#dc2626';
-                msgEl.textContent   = res.message || 'Something went wrong.';
-            }
-        })
-        .catch(function() {
-            btn.disabled = false;
-            btn.textContent = orig;
-            msgEl.style.display = '';
-            msgEl.style.color   = '#dc2626';
-            msgEl.textContent   = 'Network error. Please try again.';
-        });
-}
 
 function injectNewRow(d) {
     const now    = new Date();
@@ -1963,7 +1298,7 @@ function injectNewRow(d) {
         <td><span class="pri ${priCls}">${d.priority}</span></td>
         <td><span class="badge badge-pending">Pending Approval</span></td>
         <td style="color:#6b7a8d;font-size:11px">${dateStr}</td>`;
-    tr.addEventListener('click', function() { openDetailModal(this.dataset); });
+    tr.addEventListener('click', function() { window.location.href = 'wo_detail.php?wo=' + encodeURIComponent(this.dataset.wo); });
     const tbody = document.getElementById('wo-tbody');
     const emptyRow = tbody.querySelector('.empty-state');
     if (emptyRow) emptyRow.closest('tr').remove();
@@ -1971,31 +1306,19 @@ function injectNewRow(d) {
 }
 
 document.querySelectorAll('.wo-row').forEach(function(row) {
-    row.addEventListener('click', function() { openDetailModal(this.dataset); });
+    row.addEventListener('click', function() {
+        window.location.href = 'wo_detail.php?wo=' + encodeURIComponent(this.dataset.wo);
+    });
 });
 
-function closeDetailModal() { document.getElementById('detail-overlay').classList.remove('open'); }
-document.getElementById('close-detail').addEventListener('click', closeDetailModal);
-document.getElementById('close-detail-footer').addEventListener('click', closeDetailModal);
-document.getElementById('detail-overlay').addEventListener('click', function(e){ if(e.target===this) closeDetailModal(); });
 
-// ── Auto-open WO detail modal from URL ?wo=WO-000001 (email link) ─────────────
+// ── Redirect ?wo= param to wo_detail.php (email link fallback) ───────────────
 (function() {
     const params  = new URLSearchParams(window.location.search);
     const woParam = params.get('wo');
-    if (!woParam) return;
-    const rows = document.querySelectorAll('.wo-row');
-    for (let i = 0; i < rows.length; i++) {
-        if (rows[i].dataset.wo === woParam) {
-            openDetailModal(rows[i].dataset);
-            window.history.replaceState({}, '', window.location.pathname);
-            return;
-        }
-    }
-    alert('Work order ' + woParam + ' was not found or you do not have permission to view it.');
+    if (woParam) window.location.replace('wo_detail.php?wo=' + encodeURIComponent(woParam));
 })();
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/glightbox/dist/js/glightbox.min.js"></script>
 </body>
 </html>

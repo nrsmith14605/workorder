@@ -179,7 +179,7 @@ $_nav_show_reports = in_array($user_role ?? '', ['A', 'MT', 'MM']);
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
 :root{--cyan:#29b6d5;--cyan-dark:#1a9ab8;--cyan-light:#e6f7fb;--cyan-muted:#c5eaf3;--navy:#0B1F2E}
-.main{max-width:1300px;margin:0 auto;padding:32px 24px 48px;flex:1}
+.main{max-width:1300px;width:100%;margin:0 auto;padding:32px 24px 48px;flex:1}
 
 /* ── NAV ── */
 .nav{background:#fff;border-bottom:1px solid #e8ecf0;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -695,11 +695,11 @@ select.rpt-input{
             if (!notifDd.contains(e.target) && e.target !== notifBtn)
                 notifDd.classList.remove('open');
         });
-        // On non-main pages, clicking a notification item navigates to main.php
+        // On non-main pages, clicking a notification navigates to the detail page
         <?php if (($current_page ?? '') !== 'main'): ?>
         notifDd.querySelectorAll('.notif-item').forEach(function(item) {
             item.addEventListener('click', function() {
-                window.location.href = 'main.php?wo=' + encodeURIComponent(this.dataset.wo);
+                window.location.href = 'wo_detail.php?wo=' + encodeURIComponent(this.dataset.wo);
             });
         });
         <?php endif; ?>
