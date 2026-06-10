@@ -157,11 +157,9 @@ if ($user_role === 'A') {
     $res = $db->query("SELECT * FROM orders ORDER BY created_at DESC");
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
 } elseif ($user_role === 'MT') {
-    // Tech orders that have reached MT or beyond
     $res = $db->query("SELECT * FROM orders WHERE type = 'Technology' AND (current_handler IN ('MT','worker') OR status IN ('Completed','Rejected')) ORDER BY created_at DESC");
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
 } elseif ($user_role === 'MM') {
-    // Maintenance orders that have reached MM or beyond
     $res = $db->query("SELECT * FROM orders WHERE type = 'Maintenance' AND (current_handler IN ('MM','worker') OR status IN ('Completed','Rejected')) ORDER BY created_at DESC");
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
 } elseif ($user_role === 'BP') {
@@ -184,7 +182,6 @@ if ($user_role === 'A') {
         $stmt->close();
     }
 } elseif (in_array($user_role, ['BM', 'BC', 'MW'])) {
-    // Workers only see orders assigned to them via order_assignments
     $stmt = $db->prepare(
         "SELECT o.* FROM orders o
          INNER JOIN order_assignments oa ON o.id = oa.order_id
@@ -493,6 +490,93 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .form-row .form-group{margin-bottom:0}
 .form-spacer{height:16px}
 
+/* ── MOBILE RESPONSIVE ── */
+@media(max-width:768px){
+
+    /* Nav */
+    .nav{padding:0 14px}
+    .nav-title{font-size:15px}
+    .nav-links{display:none}
+
+    /* Main padding */
+    .main{padding:18px 14px 40px}
+
+    /* Welcome bar */
+    .welcome-bar{margin-bottom:20px}
+    .welcome-bar h1{font-size:22px}
+
+    /* Type cards: stack vertically, maintenance first */
+    .type-cards{
+        grid-template-columns:1fr;
+        gap:12px;
+        margin-bottom:24px;
+    }
+
+    /* Section head: stack title + dropdown on separate lines */
+    .section-head{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:10px;
+        margin-bottom:12px;
+    }
+    .section-head h2{
+        font-size:19px;
+        white-space:normal;
+        line-height:1.2;
+    }
+
+    /* Hide pill tabs on mobile */
+    .filter-tabs{display:none}
+
+    /* Show mobile dropdown instead */
+    .filter-select-wrap{display:block}
+
+    /* WO table: reset layout + hide less-important columns */
+    .wo-table{table-layout:auto}
+    .wo-table colgroup col:nth-child(2),
+    .wo-table colgroup col:nth-child(6),
+    .wo-table colgroup col:nth-child(7),
+    .wo-table colgroup col:nth-child(8),
+    .wo-table colgroup col:nth-child(11)
+    {display:none;width:0}
+    .wo-table th:nth-child(2),
+    .wo-table td:nth-child(2),
+    .wo-table th:nth-child(6),
+    .wo-table td:nth-child(6),
+    .wo-table th:nth-child(7),
+    .wo-table td:nth-child(7),
+    .wo-table th:nth-child(8),
+    .wo-table td:nth-child(8),
+    .wo-table th:nth-child(11),
+    .wo-table td:nth-child(11)
+    {display:none}
+
+    .wo-table{font-size:12px}
+    .wo-table td{padding:10px 7px}
+    .wo-table th{padding:8px 7px;font-size:9px}
+    .wo-id{font-size:13px}
+    .badge{font-size:10px;padding:3px 7px}
+    .pri{font-size:10px;padding:3px 7px}
+    .wo-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
+
+/* Mobile filter dropdown — hidden on desktop */
+.filter-select-wrap{display:none}
+.filter-select{
+    padding:7px 32px 7px 12px;
+    border-radius:20px;
+    border:1px solid #d0d5dd;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    appearance:none;
+    font-size:13px;
+    font-weight:600;
+    font-family:'Barlow',sans-serif;
+    color:#1a1a2e;
+    cursor:pointer;
+    min-width:160px;
+}
+.filter-select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
+
 /* ── FOOTER ── */
 .site-footer{
     background:#0B1F2E;
@@ -569,6 +653,19 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <button class="filter-tab" data-filter="In Progress">In Progress</button>
             <button class="filter-tab" data-filter="Completed">Completed</button>
             <button class="filter-tab" data-filter="Rejected">Rejected</button>
+        </div>
+        <!-- Mobile filter dropdown (hidden on desktop via CSS) -->
+        <div class="filter-select-wrap">
+            <select class="filter-select" id="filter-select-mobile">
+                <option value="all">All Orders</option>
+                <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
+                <option value="Pending Approval">Pending</option>
+                <option value="Approved">Approved</option>
+                <?php endif; ?>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Rejected">Rejected</option>
+            </select>
         </div>
     </div>
 
@@ -965,7 +1062,6 @@ document.querySelectorAll('.pri-pill').forEach(function(pill) {
         const fromVal = this.value;
         const fromIdx = times.indexOf(fromVal);
         const sep     = fromSel.closest('.time-range-wrap').querySelector('.time-range-sep');
-        // "After 4:00 PM" has no valid end time — hide To
         if (fromVal === 'After 4:00 PM') {
             toSel.value = '';
             toSel.style.display  = 'none';
@@ -1124,7 +1220,6 @@ if (submitWoBtn) {
         const newProblem  = document.getElementById('f-problem-type').value;
         const newPriority = document.getElementById('f-priority').value;
 
-        // Per-image step animation: advance (100 / numFiles)% every second
         let animTimer  = null;
         let animPct    = 0;
         const numFiles = selectedFiles.length;
@@ -1238,9 +1333,23 @@ document.querySelectorAll('.filter-tab').forEach(function(tab) {
         document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         activeFilter = this.dataset.filter;
+        var mSel = document.getElementById('filter-select-mobile');
+        if (mSel) mSel.value = activeFilter;
         applyTable();
     });
 });
+
+// Mobile filter dropdown sync
+var mobileFilterSel = document.getElementById('filter-select-mobile');
+if (mobileFilterSel) {
+    mobileFilterSel.addEventListener('change', function() {
+        activeFilter = this.value;
+        document.querySelectorAll('.filter-tab').forEach(function(t) {
+            t.classList.toggle('active', t.dataset.filter === activeFilter);
+        });
+        applyTable();
+    });
+}
 
 document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
     th.addEventListener('click', function() {
@@ -1255,7 +1364,6 @@ document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
         applyTable();
     });
 });
-
 
 function injectNewRow(d) {
     const now    = new Date();
@@ -1310,7 +1418,6 @@ document.querySelectorAll('.wo-row').forEach(function(row) {
         window.location.href = 'wo_detail.php?wo=' + encodeURIComponent(this.dataset.wo);
     });
 });
-
 
 // ── Redirect ?wo= param to wo_detail.php (email link fallback) ───────────────
 (function() {
