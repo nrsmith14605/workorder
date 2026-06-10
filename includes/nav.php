@@ -25,7 +25,7 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
         $_bt = array_filter(array_map('trim', explode(',', $user_building ?? '')));
         if ($_bt) {
             $_ph = implode(',', array_fill(0, count($_bt), '?'));
-            $_st = $_ndb->prepare("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='BT' AND building IN ($_ph) ORDER BY created_at DESC LIMIT 9");
+            $_st = $_ndb->prepare("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='BT' AND type='Technology' AND building IN ($_ph) ORDER BY created_at DESC LIMIT 9");
             $_st->bind_param(str_repeat('s', count($_bt)), ...$_bt);
             $_st->execute();
             $_r = $_st->get_result();
@@ -52,14 +52,67 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
         while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
         $_st->close();
     } elseif ($_nav_role === 'MT') {
-        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MT' ORDER BY created_at DESC LIMIT 9");
+        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MT' AND type='Technology' ORDER BY created_at DESC LIMIT 9");
         if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
     } elseif ($_nav_role === 'MM') {
-        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MM' ORDER BY created_at DESC LIMIT 9");
+        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MM' AND type='Maintenance' ORDER BY created_at DESC LIMIT 9");
         if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
     } elseif ($_nav_role === 'A') {
-        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler IS NOT NULL ORDER BY created_at DESC LIMIT 9");
-        if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+        $_alerts = [];
+
+        // Open > 30 days (any stage, not yet closed)
+        $_r = $_ndb->query(
+            "SELECT id, building, problem_type, created_at, current_handler,
+                    DATEDIFF(NOW(), created_at) AS days, NULL AS extra_name, 'overdue' AS alert_type
+             FROM orders
+             WHERE status NOT IN ('Completed','Rejected')
+               AND DATEDIFF(NOW(), created_at) >= 30
+             ORDER BY days DESC LIMIT 9"
+        );
+        if ($_r) while ($_row = $_r->fetch_assoc()) $_alerts[$_row['id']] = $_row;
+
+        // Worker assigned > 14 days, still In Progress — call out by name
+        $_r = $_ndb->query(
+            "SELECT o.id, o.building, o.problem_type, o.created_at, o.current_handler,
+                    DATEDIFF(NOW(), o.created_at) AS days, oa.user_name AS extra_name, 'worker_overdue' AS alert_type
+             FROM orders o
+             INNER JOIN order_assignments oa ON o.id = oa.order_id
+             WHERE o.status = 'In Progress' AND o.current_handler = 'worker'
+               AND DATEDIFF(NOW(), o.created_at) >= 14
+             ORDER BY days DESC LIMIT 9"
+        );
+        if ($_r) while ($_row = $_r->fetch_assoc()) {
+            if (!isset($_alerts[$_row['id']]) || $_alerts[$_row['id']]['alert_type'] === 'overdue')
+                $_alerts[$_row['id']] = $_row;
+        }
+
+        // Stuck at role handler > 14 days — look up the handler's name(s)
+        $_r = $_ndb->query(
+            "SELECT o.id, o.building, o.problem_type, o.created_at, o.current_handler,
+                    DATEDIFF(NOW(), o.created_at) AS days,
+                    GROUP_CONCAT(CONCAT(u.first_name,' ',u.last_name) ORDER BY u.last_name SEPARATOR ', ') AS extra_name,
+                    'handler_stuck' AS alert_type
+             FROM orders o
+             LEFT JOIN users u ON u.active = 1 AND (
+                 (o.current_handler = 'BT' AND u.role = 'BT' AND FIND_IN_SET(o.building, u.building))
+                 OR (o.current_handler = 'BP' AND u.role = 'BP' AND u.building = o.building)
+                 OR (o.current_handler = 'MT' AND u.role = 'MT')
+                 OR (o.current_handler = 'MM' AND u.role = 'MM')
+             )
+             WHERE o.status NOT IN ('Completed','Rejected')
+               AND o.current_handler IN ('BT','BP','MT','MM')
+               AND DATEDIFF(NOW(), o.created_at) >= 14
+             GROUP BY o.id, o.building, o.problem_type, o.created_at, o.current_handler
+             ORDER BY days DESC LIMIT 9"
+        );
+        if ($_r) while ($_row = $_r->fetch_assoc()) {
+            if (!isset($_alerts[$_row['id']]) || $_alerts[$_row['id']]['alert_type'] === 'overdue')
+                $_alerts[$_row['id']] = $_row;
+        }
+
+        usort($_alerts, function($a, $b) { return (int)$b['days'] - (int)$a['days']; });
+        $_nav_rows = array_values(array_slice($_alerts, 0, 9));
+        unset($_alerts);
     }
 
     $_nav_notif_count = count($_nav_rows);
@@ -70,21 +123,42 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
 // Build notification dropdown HTML
 ob_start();
 $_has_notifs = !empty($_nav_rows);
+$_is_admin   = (($user_role ?? '') === 'A');
+$_hl = ['BT' => 'Building Tech', 'BP' => 'Principal', 'MT' => 'Tech Manager', 'MM' => 'Maint. Manager'];
 ?>
-<div class="notif-dd-header"><?= $_has_notifs ? 'Pending action' : 'No pending work orders' ?></div>
+<div class="notif-dd-header"><?php
+    if (!$_has_notifs) echo $_is_admin ? 'No overdue items'  : 'No pending work orders';
+    else               echo $_is_admin ? 'Overdue alerts'    : 'Pending action';
+?></div>
 <?php if (!$_has_notifs): ?>
-<div class="notif-empty">You're all caught up.</div>
+<div class="notif-empty"><?= $_is_admin ? 'No overdue or stale work orders.' : "You're all caught up." ?></div>
 <?php else: foreach (array_slice($_nav_rows, 0, 8) as $_no):
-    $_no_wo  = 'WO-' . str_pad($_no['id'], 6, '0', STR_PAD_LEFT);
-    $_no_age = human_time_diff($_no['created_at']);
+    $_no_wo = 'WO-' . str_pad($_no['id'], 6, '0', STR_PAD_LEFT);
+    if ($_is_admin && isset($_no['alert_type'])) {
+        $_d = (int)$_no['days'];
+        switch ($_no['alert_type']) {
+            case 'worker_overdue':
+                $_meta = htmlspecialchars($_no['extra_name'] ?? 'Worker') . " — assigned {$_d}d ago, not complete · " . htmlspecialchars($_no['building']);
+                break;
+            case 'handler_stuck':
+                $_who = $_no['extra_name'] ?: ($_hl[$_no['current_handler']] ?? $_no['current_handler']);
+                $_meta = 'Waiting on ' . htmlspecialchars($_who) . " — {$_d}d · " . htmlspecialchars($_no['building']) . ' · ' . htmlspecialchars($_no['problem_type']);
+                break;
+            default: // overdue
+                $_stage = $_hl[$_no['current_handler']] ?? ($_no['current_handler'] === 'worker' ? 'Worker' : '?');
+                $_meta = "Open {$_d} days · " . htmlspecialchars($_no['building']) . ' · ' . htmlspecialchars($_no['problem_type']) . " · at {$_stage}";
+        }
+    } else {
+        $_meta = htmlspecialchars($_no['building']) . ' · ' . htmlspecialchars($_no['problem_type']) . ' · ' . human_time_diff($_no['created_at']);
+    }
 ?>
 <div class="notif-item" data-wo="<?= htmlspecialchars($_no_wo) ?>">
     <span class="notif-item-wo"><?= $_no_wo ?></span>
-    <span class="notif-item-meta"><?= htmlspecialchars($_no['building']) ?> · <?= htmlspecialchars($_no['problem_type']) ?> · <?= $_no_age ?></span>
+    <span class="notif-item-meta"><?= $_meta ?></span>
 </div>
 <?php endforeach; endif;
 $_nav_notif_html = ob_get_clean();
-unset($_has_notifs, $_nav_rows, $_no, $_no_wo, $_no_age);
+unset($_has_notifs, $_is_admin, $_hl, $_nav_rows, $_no, $_no_wo, $_meta, $_d, $_who, $_stage);
 
 $_nav_role_labels = [
     'A'  => 'Administrator',

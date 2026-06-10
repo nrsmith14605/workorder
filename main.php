@@ -107,8 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
                 $user_email
             );
         } else {
-            // Maintenance: notify BP for this building directly on submission
-            send_bp_notification_email(
+            send_maintenance_submit_email(
                 $conn,
                 $wo_num,
                 $building,
@@ -117,9 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
                 $description,
                 $priority,
                 $submitted_name,
-                $user_email,
-                $submitted_name,
-                'Maintenance'
+                $user_email
             );
         }
 
