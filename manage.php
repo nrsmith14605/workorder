@@ -25,8 +25,6 @@ $name_parts    = explode(' ', trim($user_name));
 $initials      = strtoupper(substr($name_parts[0],0,1) . (isset($name_parts[1]) ? substr($name_parts[1],0,1) : ''));
 $user_building = $_SESSION['user_building'] ?? null;
 $current_page  = 'manage';
-$notif_count   = 0;
-$_nav_notif_html = '';
 
 // ── DB connection ──────────────────────────────────────────
 require_once __DIR__ . '/../../wo_config.php';

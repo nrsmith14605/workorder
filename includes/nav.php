@@ -2,7 +2,89 @@
 // nav.php
 // Requires: $user_name, $user_email, $user_pic, $initials, $user_role, $user_building
 // Optional: $current_page ('main', 'manage') for active nav highlighting
-// Optional: $notif_count (int) for bell badge
+
+if (!function_exists('human_time_diff')) {
+    function human_time_diff(string $datetime): string {
+        $diff = time() - strtotime($datetime);
+        if ($diff < 3600)  return round($diff/60) . 'm ago';
+        if ($diff < 86400) return round($diff/3600) . 'h ago';
+        return round($diff/86400) . 'd ago';
+    }
+}
+
+// ── Self-contained notification data ─────────────────────────
+$_nav_notif_count = 0;
+$_nav_rows = [];
+$_nav_role = $user_role ?? '';
+
+if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
+    $_ndb = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    $_ndb->set_charset('utf8mb4');
+
+    if ($_nav_role === 'BT') {
+        $_bt = array_filter(array_map('trim', explode(',', $user_building ?? '')));
+        if ($_bt) {
+            $_ph = implode(',', array_fill(0, count($_bt), '?'));
+            $_st = $_ndb->prepare("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='BT' AND building IN ($_ph) ORDER BY created_at DESC LIMIT 9");
+            $_st->bind_param(str_repeat('s', count($_bt)), ...$_bt);
+            $_st->execute();
+            $_r = $_st->get_result();
+            while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+            $_st->close();
+        }
+    } elseif ($_nav_role === 'BP') {
+        $_st = $_ndb->prepare("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='BP' AND building=? ORDER BY created_at DESC LIMIT 9");
+        $_st->bind_param('s', $user_building);
+        $_st->execute();
+        $_r = $_st->get_result();
+        while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+        $_st->close();
+    } elseif (in_array($_nav_role, ['MW','BC','BM'])) {
+        $_st = $_ndb->prepare(
+            "SELECT o.id, o.building, o.problem_type, o.created_at FROM orders o
+             INNER JOIN order_assignments oa ON o.id = oa.order_id
+             WHERE oa.user_email = ? AND o.current_handler = 'worker'
+             ORDER BY o.created_at DESC LIMIT 9"
+        );
+        $_st->bind_param('s', $user_email);
+        $_st->execute();
+        $_r = $_st->get_result();
+        while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+        $_st->close();
+    } elseif ($_nav_role === 'MT') {
+        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MT' ORDER BY created_at DESC LIMIT 9");
+        if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+    } elseif ($_nav_role === 'MM') {
+        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler='MM' ORDER BY created_at DESC LIMIT 9");
+        if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+    } elseif ($_nav_role === 'A') {
+        $_r = $_ndb->query("SELECT id, building, problem_type, created_at FROM orders WHERE current_handler IS NOT NULL ORDER BY created_at DESC LIMIT 9");
+        if ($_r) while ($_row = $_r->fetch_assoc()) $_nav_rows[] = $_row;
+    }
+
+    $_nav_notif_count = count($_nav_rows);
+    $_ndb->close();
+    unset($_ndb, $_nav_role, $_bt, $_ph, $_st, $_r, $_row);
+}
+
+// Build notification dropdown HTML
+ob_start();
+$_has_notifs = !empty($_nav_rows);
+?>
+<div class="notif-dd-header"><?= $_has_notifs ? 'Pending action' : 'No pending work orders' ?></div>
+<?php if (!$_has_notifs): ?>
+<div class="notif-empty">You're all caught up.</div>
+<?php else: foreach (array_slice($_nav_rows, 0, 8) as $_no):
+    $_no_wo  = 'WO-' . str_pad($_no['id'], 6, '0', STR_PAD_LEFT);
+    $_no_age = human_time_diff($_no['created_at']);
+?>
+<div class="notif-item" data-wo="<?= htmlspecialchars($_no_wo) ?>">
+    <span class="notif-item-wo"><?= $_no_wo ?></span>
+    <span class="notif-item-meta"><?= htmlspecialchars($_no['building']) ?> · <?= htmlspecialchars($_no['problem_type']) ?> · <?= $_no_age ?></span>
+</div>
+<?php endforeach; endif;
+$_nav_notif_html = ob_get_clean();
+unset($_has_notifs, $_nav_rows, $_no, $_no_wo, $_no_age);
 
 $_nav_role_labels = [
     'A'  => 'Administrator',
@@ -17,7 +99,6 @@ $_nav_role_labels = [
 ];
 $_nav_role_label = $_nav_role_labels[$user_role ?? 'U'] ?? 'User';
 $_nav_show_reports = in_array($user_role ?? '', ['A', 'MT', 'MM']);
-$_nav_notif_count  = $notif_count ?? 0;
 ?>
 <style>
 /* ── REPORTS DRAWER ── */
@@ -214,11 +295,9 @@ select.rpt-input{
             <span class="notif-badge"><?= $_nav_notif_count > 9 ? '9+' : $_nav_notif_count ?></span>
             <?php endif; ?>
         </button>
-        <?php if (!empty($_nav_notif_html)): ?>
         <div class="notif-dropdown" id="notif-dd">
             <?= $_nav_notif_html ?>
         </div>
-        <?php endif; ?>
 
         <div class="avatar" id="avatar-btn" aria-label="Profile menu" role="button" tabindex="0">
             <?php if ($user_pic): ?>

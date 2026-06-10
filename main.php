@@ -149,13 +149,6 @@ $role_colors = [
 ];
 $role_style = $role_colors[$user_role] ?? $role_colors['U'];
 
-function human_time_diff(string $datetime): string {
-    $diff = time() - strtotime($datetime);
-    if ($diff < 3600)  return round($diff/60) . 'm ago';
-    if ($diff < 86400) return round($diff/3600) . 'h ago';
-    return round($diff/86400) . 'd ago';
-}
-
 // ── Fetch work orders based on role ──────────────────────────
 require_once __DIR__ . '/../../wo_config.php';
 $db = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -231,76 +224,6 @@ if (in_array($user_role, ['MT', 'MM', 'A'])) {
     if ($res3) while ($row = $res3->fetch_assoc()) $assignable_workers[] = $row;
     $db3->close();
 }
-
-// ── Notification count for bell badge ────────────────────────
-$notif_count = 0;
-if (in_array($user_role, ['BT', 'BP', 'MT', 'MM', 'A', 'MW', 'BC', 'BM'])) {
-    $db2 = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    $db2->set_charset('utf8mb4');
-    if ($user_role === 'BT') {
-        $bt_buildings = array_filter(array_map('trim', explode(',', $user_building ?? '')));
-        if ($bt_buildings) {
-            $placeholders = implode(',', array_fill(0, count($bt_buildings), '?'));
-            $types = str_repeat('s', count($bt_buildings));
-            $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE current_handler='BT' AND building IN ($placeholders)");
-            $stmt2->bind_param($types, ...$bt_buildings);
-            $stmt2->execute();
-            $stmt2->bind_result($notif_count);
-            $stmt2->fetch();
-            $stmt2->close();
-        }
-    } elseif ($user_role === 'BP') {
-        $stmt2 = $db2->prepare("SELECT COUNT(*) FROM orders WHERE current_handler='BP' AND building=?");
-        $stmt2->bind_param('s', $user_building);
-        $stmt2->execute();
-        $stmt2->bind_result($notif_count);
-        $stmt2->fetch();
-        $stmt2->close();
-    } elseif (in_array($user_role, ['MW', 'BC', 'BM'])) {
-        $stmt2 = $db2->prepare(
-            "SELECT COUNT(*) FROM orders o
-             INNER JOIN order_assignments oa ON o.id = oa.order_id
-             WHERE oa.user_email = ? AND o.current_handler = 'worker'"
-        );
-        $stmt2->bind_param('s', $user_email);
-        $stmt2->execute();
-        $stmt2->bind_result($notif_count);
-        $stmt2->fetch();
-        $stmt2->close();
-    } elseif ($user_role === 'MT') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler='MT'");
-        if ($res2) { [$notif_count] = $res2->fetch_row(); }
-    } elseif ($user_role === 'MM') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler='MM'");
-        if ($res2) { [$notif_count] = $res2->fetch_row(); }
-    } elseif ($user_role === 'A') {
-        $res2 = $db2->query("SELECT COUNT(*) FROM orders WHERE current_handler IS NOT NULL");
-        if ($res2) { [$notif_count] = $res2->fetch_row(); }
-    }
-    $db2->close();
-}
-
-// ── Pre-render notification dropdown for nav include ─────────
-ob_start();
-$notif_orders = array_filter($orders, function($o) use ($user_role) {
-    if (in_array($user_role, ['MW','BC','BM'])) return ($o['current_handler'] ?? '') === 'worker';
-    return ($o['current_handler'] ?? '') === $user_role;
-});
-$has_notifs = !empty($notif_orders);
-?>
-<div class="notif-dd-header"><?= $has_notifs ? 'Pending action' : 'No pending work orders' ?></div>
-<?php if (!$has_notifs): ?>
-<div class="notif-empty">You're all caught up.</div>
-<?php else: foreach (array_slice(array_values($notif_orders), 0, 8) as $no):
-    $no_wo  = 'WO-' . str_pad($no['id'], 6, '0', STR_PAD_LEFT);
-    $no_age = human_time_diff($no['created_at']);
-?>
-<div class="notif-item" data-wo="<?= htmlspecialchars($no_wo) ?>">
-    <span class="notif-item-wo"><?= $no_wo ?></span>
-    <span class="notif-item-meta"><?= htmlspecialchars($no['building']) ?> · <?= htmlspecialchars($no['problem_type']) ?> · <?= $no_age ?></span>
-</div>
-<?php endforeach; endif;
-$_nav_notif_html = ob_get_clean();
 
 $current_page = 'main';
 ?>
