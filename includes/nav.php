@@ -94,8 +94,8 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
                     'handler_stuck' AS alert_type
              FROM orders o
              LEFT JOIN users u ON u.active = 1 AND (
-                 (o.current_handler = 'BT' AND u.role = 'BT' AND FIND_IN_SET(o.building, u.building))
-                 OR (o.current_handler = 'BP' AND u.role = 'BP' AND u.building = o.building)
+                 (o.current_handler = 'BT' AND u.role = 'BT' AND FIND_IN_SET(o.building COLLATE utf8mb4_unicode_ci, u.building COLLATE utf8mb4_unicode_ci))
+                 OR (o.current_handler = 'BP' AND u.role = 'BP' AND u.building COLLATE utf8mb4_unicode_ci = o.building COLLATE utf8mb4_unicode_ci)
                  OR (o.current_handler = 'MT' AND u.role = 'MT')
                  OR (o.current_handler = 'MM' AND u.role = 'MM')
              )
@@ -175,6 +175,54 @@ $_nav_role_label = $_nav_role_labels[$user_role ?? 'U'] ?? 'User';
 $_nav_show_reports = in_array($user_role ?? '', ['A', 'MT', 'MM']);
 ?>
 <style>
+/* ── SHARED BASE (injected by nav so every page gets it) ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
+:root{--cyan:#29b6d5;--cyan-dark:#1a9ab8;--cyan-light:#e6f7fb;--cyan-muted:#c5eaf3;--navy:#0B1F2E}
+.main{max-width:1300px;margin:0 auto;padding:32px 24px 48px;flex:1}
+
+/* ── NAV ── */
+.nav{background:#fff;border-bottom:1px solid #e8ecf0;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-left{display:flex;align-items:center;gap:14px}
+.nav-logo{width:36px;height:36px;background:var(--cyan);border-radius:9px;display:flex;align-items:center;justify-content:center;text-decoration:none;transition:background .15s}
+.nav-logo:hover{background:var(--cyan-dark)}
+.nav-logo i{color:#fff;font-size:19px}
+.nav-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:600;letter-spacing:.02em;color:#1a1a2e}
+.nav-title span{color:var(--cyan)}
+.nav-right{display:flex;align-items:center;gap:10px;position:relative}
+.notif-btn{width:36px;height:36px;border-radius:8px;border:1px solid #e8ecf0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7a8d;position:relative}
+.notif-btn:hover{background:#f8f9fa}
+.notif-badge{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid #fff;line-height:1;font-family:'Barlow',sans-serif}
+.notif-dropdown{position:absolute;top:46px;right:40px;width:320px;background:#fff;border:1px solid #e8ecf0;border-radius:12px;padding:0;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.10);overflow:hidden}
+.notif-dropdown.open{display:block}
+.notif-dd-header{padding:12px 16px;border-bottom:1px solid #f0f4f8;font-size:12px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:.06em}
+.notif-item{display:flex;flex-direction:column;padding:12px 16px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:#f0f8fb}
+.notif-item-wo{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--cyan)}
+.notif-item-meta{font-size:12px;color:#6b7a8d;margin-top:2px}
+.notif-empty{padding:20px 16px;text-align:center;font-size:13px;color:#aab0bb}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;cursor:pointer;border:2px solid var(--cyan-muted);overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.profile-dropdown{position:absolute;top:46px;right:0;width:248px;background:#fff;border:1px solid #e8ecf0;border-radius:12px;padding:16px;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+.profile-dropdown.open{display:block}
+.pd-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pd-avatar{width:46px;height:46px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden}
+.pd-avatar img{width:100%;height:100%;object-fit:cover}
+.pd-name{font-weight:600;font-size:14px;color:#1a1a2e}
+.pd-email{font-size:12px;color:#6b7a8d;margin-top:2px;word-break:break-all}
+.pd-role-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-top:8px}
+.pd-divider{border:none;border-top:1px solid #f0f4f8;margin:10px 0}
+.pd-item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;cursor:pointer;font-size:13px;color:#6b7a8d;width:100%;background:transparent;border:none;font-family:'Barlow',sans-serif;text-align:left;text-decoration:none}
+.pd-item:hover{background:#f8f9fa;color:#1a1a2e}
+.pd-item.danger{color:#dc2626}
+.pd-item.danger:hover{background:#fff5f5}
+.active-page{background:var(--cyan-light)!important;color:var(--cyan-dark)!important}
+.nav-links{display:flex;align-items:center;gap:4px;margin-left:20px}
+.nav-link{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:#6b7a8d;text-decoration:none;transition:all .12s;border:none;background:transparent;cursor:pointer;font-family:'Barlow',sans-serif}
+.nav-link:hover{background:#f0f4f8;color:#1a1a2e}
+.nav-link.active{background:var(--cyan-light);color:var(--cyan-dark)}
+
 /* ── REPORTS DRAWER ── */
 .reports-overlay{
     position:fixed;inset:0;
@@ -633,6 +681,30 @@ select.rpt-input{
 
 <script>
 (function(){
+    // ── Notification dropdown ─────────────────────────────────
+    const notifBtn = document.getElementById('notif-btn');
+    const notifDd  = document.getElementById('notif-dd');
+    if (notifBtn && notifDd) {
+        notifBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notifDd.classList.toggle('open');
+            const _pd = document.getElementById('profile-dd');
+            if (_pd) _pd.classList.remove('open');
+        });
+        document.addEventListener('click', function(e) {
+            if (!notifDd.contains(e.target) && e.target !== notifBtn)
+                notifDd.classList.remove('open');
+        });
+        // On non-main pages, clicking a notification item navigates to main.php
+        <?php if (($current_page ?? '') !== 'main'): ?>
+        notifDd.querySelectorAll('.notif-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                window.location.href = 'main.php?wo=' + encodeURIComponent(this.dataset.wo);
+            });
+        });
+        <?php endif; ?>
+    }
+
     // ── Profile dropdown ──────────────────────────────────────
     const avatarBtn = document.getElementById('avatar-btn');
     const profileDd = document.getElementById('profile-dd');

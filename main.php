@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 session_start();
 
@@ -573,7 +575,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 </head>
 <body>
 
-<?php require_once __DIR__ . '/nav.php'; ?>
+<?php require_once __DIR__ . '/includes/nav.php'; ?>
 
 <!-- ============================================================
      MAIN CONTENT
@@ -1116,33 +1118,17 @@ const ASSIGNABLE_WORKERS = <?= json_encode($assignable_workers) ?>;
 
 // Profile dropdown handled by nav.php
 
-// ── Notification dropdown ─────────────────────────────────────
-const notifBtn = document.getElementById('notif-btn');
-const notifDd  = document.getElementById('notif-dd');
-if (notifBtn) {
-    notifBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        notifDd.classList.toggle('open');
-        const _profileDd = document.getElementById('profile-dd');
-        if (_profileDd) _profileDd.classList.remove('open');
+// ── Notification item clicks → open detail modal ─────────────
+document.querySelectorAll('.notif-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+        document.getElementById('notif-dd').classList.remove('open');
+        const wo = this.dataset.wo;
+        const rows = document.querySelectorAll('.wo-row');
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].dataset.wo === wo) { openDetailModal(rows[i].dataset); return; }
+        }
     });
-    document.addEventListener('click', function(e) {
-        if (!notifDd.contains(e.target) && e.target !== notifBtn) notifDd.classList.remove('open');
-    });
-    document.querySelectorAll('.notif-item').forEach(function(item) {
-        item.addEventListener('click', function() {
-            notifDd.classList.remove('open');
-            const wo = this.dataset.wo;
-            const rows = document.querySelectorAll('.wo-row');
-            for (let i = 0; i < rows.length; i++) {
-                if (rows[i].dataset.wo === wo) {
-                    openDetailModal(rows[i].dataset);
-                    return;
-                }
-            }
-        });
-    });
-}
+});
 
 // ── Open WO form modal ────────────────────────────────────────
 const cardMaint = document.getElementById('card-maint');

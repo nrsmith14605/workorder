@@ -122,8 +122,19 @@ $role_labels = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manage Users – Warrick County Work Order System</title>
-<?php require_once 'includes/nav.php'; ?>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column}
+:root{
+    --cyan:#29b6d5;
+    --cyan-dark:#1a9ab8;
+    --cyan-light:#e6f7fb;
+    --cyan-muted:#c5eaf3;
+    --navy:#0B1F2E;
+}
+.main{max-width:1300px;margin:0 auto;padding:32px 24px 48px;flex:1}
 
 /* ── PAGE LAYOUT OVERRIDE ── */
 .main{max-width:1300px}
@@ -233,6 +244,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 </style>
 </head>
 <body>
+
+<?php require_once __DIR__ . '/includes/nav.php'; ?>
 
 <main class="main">
 

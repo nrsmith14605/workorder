@@ -39,7 +39,7 @@ function send_tech_wo_email(
         "SELECT first_name, last_name, email
            FROM users
           WHERE role = 'BT'
-            AND FIND_IN_SET(?, building)
+            AND FIND_IN_SET(? COLLATE utf8mb4_unicode_ci, building COLLATE utf8mb4_unicode_ci)
             AND active = 1"
     );
     if (!$stmt) return;
