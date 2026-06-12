@@ -39,7 +39,7 @@ function send_tech_wo_email(
         "SELECT first_name, last_name, email
            FROM users
           WHERE role = 'BT'
-            AND FIND_IN_SET(? COLLATE utf8mb4_unicode_ci, building COLLATE utf8mb4_unicode_ci)
+            AND FIND_IN_SET(?, building)
             AND active = 1"
     );
     if (!$stmt) return;
@@ -268,7 +268,7 @@ HTML;
             $mail->Body    = $tech_html;
             $mail->AltBody = $plain_tech;
             $mail->send();
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("WO Mailer [tech]: failed to send to {$tech['email']} — " . $e->getMessage());
         }
     }
@@ -282,7 +282,7 @@ HTML;
         $mail->Body    = $submitter_html;
         $mail->AltBody = $plain_submitter;
         $mail->send();
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         error_log("WO Mailer [submitter]: failed to send to {$submitted_by} — " . $e->getMessage());
     }
 }
@@ -313,8 +313,6 @@ function send_maintenance_submit_email(
     $r   = $stmt->get_result();
     while ($row = $r->fetch_assoc()) $bps[] = $row;
     $stmt->close();
-
-    if (empty($bps)) return;
 
     // ── 2. Priority colors ────────────────────────────────────────────
     $pri_colors = [
@@ -498,22 +496,24 @@ HTML;
                      . "Your request is pending approval. You can view its status here:\n{$view_url}\n\n"
                      . "---\nWarrick County Work Order System (automated — do not reply)";
 
-    // ── 6. Send to each Building Principal ───────────────────────────
-    $bp_html = $build_html('New maintenance work order submitted — awaiting your approval');
-    foreach ($bps as $bp) {
-        try {
-            $mail = _make_mailer();
-            $mail->addAddress($bp['email'], $bp['first_name'] . ' ' . $bp['last_name']);
-            $mail->Subject = 'New Maintenance Work Order ' . $wo_num;
-            $mail->Body    = $bp_html;
-            $mail->AltBody = $plain_bp;
-            $mail->send();
-        } catch (Exception $e) {
-            error_log("WO Mailer [maint-bp]: failed to send to {$bp['email']} — " . $e->getMessage());
+    // ── 6. Send to each Building Principal (if any) ──────────────────
+    if (!empty($bps)) {
+        $bp_html = $build_html('New maintenance work order submitted — awaiting your approval');
+        foreach ($bps as $bp) {
+            try {
+                $mail = _make_mailer();
+                $mail->addAddress($bp['email'], $bp['first_name'] . ' ' . $bp['last_name']);
+                $mail->Subject = 'New Maintenance Work Order ' . $wo_num;
+                $mail->Body    = $bp_html;
+                $mail->AltBody = $plain_bp;
+                $mail->send();
+            } catch (\Throwable $e) {
+                error_log("WO Mailer [maint-bp]: failed to send to {$bp['email']} — " . $e->getMessage());
+            }
         }
     }
 
-    // ── 7. Send confirmation to submitter ─────────────────────────────
+    // ── 7. Send confirmation to submitter (always) ────────────────────
     $sub_html = $build_html('Your work order has been submitted and is pending approval');
     try {
         $mail = _make_mailer();
@@ -522,7 +522,7 @@ HTML;
         $mail->Body    = $sub_html;
         $mail->AltBody = $plain_submitter;
         $mail->send();
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         error_log("WO Mailer [maint-submitter]: failed to send to {$submitted_by} — " . $e->getMessage());
     }
 }

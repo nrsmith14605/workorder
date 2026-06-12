@@ -2,8 +2,8 @@
 	{
 		"name": "localhost",
 		"host": "ftp.chs-cs.com",
-		"port": 21,
-		"type": "ftp",
+		"port": 22,
+		"type": "sftp",
 		"username": "wo_admin@chs-cs.com",
 		"password": "WCSC#12345",
 		"path": "/",

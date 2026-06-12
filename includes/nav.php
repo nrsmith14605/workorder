@@ -110,6 +110,20 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
                 $_alerts[$_row['id']] = $_row;
         }
 
+        // MM / MT queues — ensure both maintenance and technology pending items are always visible
+        $_r = $_ndb->query(
+            "SELECT id, building, problem_type, created_at, current_handler,
+                    DATEDIFF(NOW(), created_at) AS days, NULL AS extra_name, 'pending_queue' AS alert_type
+             FROM orders
+             WHERE current_handler IN ('MT','MM')
+               AND status NOT IN ('Completed','Rejected')
+             ORDER BY created_at ASC"
+        );
+        if ($_r) while ($_row = $_r->fetch_assoc()) {
+            if (!isset($_alerts[$_row['id']]))
+                $_alerts[$_row['id']] = $_row;
+        }
+
         usort($_alerts, function($a, $b) { return (int)$b['days'] - (int)$a['days']; });
         $_nav_rows = array_values(array_slice($_alerts, 0, 9));
         unset($_alerts);
@@ -127,11 +141,11 @@ $_is_admin   = (($user_role ?? '') === 'A');
 $_hl = ['BT' => 'Building Tech', 'BP' => 'Principal', 'MT' => 'Tech Manager', 'MM' => 'Maint. Manager'];
 ?>
 <div class="notif-dd-header"><?php
-    if (!$_has_notifs) echo $_is_admin ? 'No overdue items'  : 'No pending work orders';
-    else               echo $_is_admin ? 'Overdue alerts'    : 'Pending action';
+    if (!$_has_notifs) echo $_is_admin ? 'No pending or overdue items' : 'No pending work orders';
+    else               echo $_is_admin ? 'Alerts &amp; Pending Queue'  : 'Pending action';
 ?></div>
 <?php if (!$_has_notifs): ?>
-<div class="notif-empty"><?= $_is_admin ? 'No overdue or stale work orders.' : "You're all caught up." ?></div>
+<div class="notif-empty"><?= $_is_admin ? 'No pending or overdue work orders.' : "You're all caught up." ?></div>
 <?php else: foreach (array_slice($_nav_rows, 0, 8) as $_no):
     $_no_wo = 'WO-' . str_pad($_no['id'], 6, '0', STR_PAD_LEFT);
     if ($_is_admin && isset($_no['alert_type'])) {
@@ -143,6 +157,10 @@ $_hl = ['BT' => 'Building Tech', 'BP' => 'Principal', 'MT' => 'Tech Manager', 'M
             case 'handler_stuck':
                 $_who = $_no['extra_name'] ?: ($_hl[$_no['current_handler']] ?? $_no['current_handler']);
                 $_meta = 'Waiting on ' . htmlspecialchars($_who) . " — {$_d}d · " . htmlspecialchars($_no['building']) . ' · ' . htmlspecialchars($_no['problem_type']);
+                break;
+            case 'pending_queue':
+                $_stage = $_hl[$_no['current_handler']] ?? $_no['current_handler'];
+                $_meta = 'Awaiting assignment · ' . htmlspecialchars($_no['building']) . ' · ' . htmlspecialchars($_no['problem_type']) . " · at {$_stage}";
                 break;
             default: // overdue
                 $_stage = $_hl[$_no['current_handler']] ?? ($_no['current_handler'] === 'worker' ? 'Worker' : '?');
@@ -227,22 +245,17 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .reports-overlay{
     position:fixed;inset:0;
     background:rgba(11,31,46,0.45);
-    z-index:400;
-    opacity:0;
+    z-index:400;opacity:0;
     pointer-events:none;
     transition:opacity .25s ease;
 }
 .reports-overlay.open{opacity:1;pointer-events:all}
 
 .reports-drawer{
-    position:fixed;
-    top:0;right:0;
-    width:350px;
-    height:100vh;
-    background:#fff;
-    z-index:401;
-    display:flex;
-    flex-direction:column;
+    position:fixed;top:0;right:0;
+    width:440px;height:100vh;
+    background:#fff;z-index:401;
+    display:flex;flex-direction:column;
     box-shadow:-8px 0 40px rgba(0,0,0,0.13);
     transform:translateX(100%);
     transition:transform .28s cubic-bezier(.4,0,.2,1);
@@ -251,37 +264,25 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .reports-drawer.open{transform:translateX(0)}
 
 .reports-drawer-header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:20px 22px 16px;
-    border-bottom:1px solid #f0f4f8;
-    flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 24px 16px;
+    border-bottom:1px solid #f0f4f8;flex-shrink:0;
 }
-.reports-drawer-title{
-    display:flex;align-items:center;gap:10px;
-}
+.reports-drawer-title{display:flex;align-items:center;gap:10px}
 .reports-drawer-title-icon{
-    width:36px;height:36px;
-    border-radius:9px;
+    width:36px;height:36px;border-radius:9px;
     background:var(--cyan-light);
     display:flex;align-items:center;justify-content:center;
-    color:var(--cyan-dark);
-    font-size:18px;
-    flex-shrink:0;
+    color:var(--cyan-dark);font-size:18px;flex-shrink:0;
 }
 .reports-drawer-title h2{
     font-family:'Barlow Condensed',sans-serif;
-    font-size:19px;font-weight:700;
-    color:#1a1a2e;letter-spacing:.01em;
+    font-size:19px;font-weight:700;color:#1a1a2e;letter-spacing:.01em;
 }
-.reports-drawer-title p{
-    font-size:11px;color:#6b7a8d;margin-top:1px;
-}
+.reports-drawer-title p{font-size:11px;color:#6b7a8d;margin-top:1px}
 .reports-drawer-close{
-    width:32px;height:32px;
-    border-radius:8px;border:1px solid #e8ecf0;
-    background:transparent;cursor:pointer;
+    width:32px;height:32px;border-radius:8px;
+    border:1px solid #e8ecf0;background:transparent;cursor:pointer;
     display:flex;align-items:center;justify-content:center;
     color:#6b7a8d;flex-shrink:0;
 }
@@ -289,107 +290,96 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 
 .reports-drawer-body{
     flex:1;overflow-y:auto;
-    padding:20px 22px 28px;
-    display:flex;flex-direction:column;gap:20px;
+    padding:20px 24px 28px;
+    display:flex;flex-direction:column;gap:16px;
 }
 
-/* Field groups */
-.rpt-section{
-    background:#f8f9fa;
-    border:1px solid #f0f4f8;
-    border-radius:12px;
-    padding:16px;
-    display:flex;flex-direction:column;gap:12px;
+/* ── Report card grid ── */
+.rpt-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rpt-card{
+    display:flex;flex-direction:column;gap:6px;
+    padding:14px;border:2px solid #e8ecf0;border-radius:12px;
+    cursor:pointer;transition:all .15s;background:#fff;user-select:none;
 }
-.rpt-section-title{
+.rpt-card:hover{border-color:var(--cyan-muted);background:var(--cyan-light)}
+.rpt-card.selected{border-color:var(--cyan);background:var(--cyan-light)}
+.rpt-card-full{grid-column:1/-1;flex-direction:row!important;align-items:center;gap:14px}
+.rpt-card-full .rpt-card-text{flex:1}
+.rpt-card-icon{
+    width:34px;height:34px;border-radius:8px;background:#f0f4f8;
+    display:flex;align-items:center;justify-content:center;
+    color:#6b7a8d;font-size:18px;flex-shrink:0;transition:all .15s;
+}
+.rpt-card:hover .rpt-card-icon,.rpt-card.selected .rpt-card-icon{background:var(--cyan);color:#fff}
+.rpt-card-name{font-size:12px;font-weight:700;color:#1a1a2e;line-height:1.3}
+.rpt-card-hint{font-size:10.5px;color:#8a96a3;line-height:1.4;margin-top:1px}
+
+/* ── Options panel ── */
+.rpt-options{
+    background:#f8f9fa;border:1px solid #f0f4f8;
+    border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:14px;
+}
+.rpt-opt-label{
     font-size:10px;font-weight:700;
     text-transform:uppercase;letter-spacing:.09em;
-    color:#aab0bb;margin-bottom:2px;
+    color:#aab0bb;margin-bottom:6px;
 }
-.rpt-field{display:flex;flex-direction:column;gap:5px}
-.rpt-label{
-    font-size:11px;font-weight:700;
-    color:#6b7a8d;
-    text-transform:uppercase;letter-spacing:.05em;
+.rpt-pills{display:flex;gap:6px;flex-wrap:wrap}
+.rpt-pill{
+    padding:6px 13px;border-radius:20px;
+    border:1.5px solid #d0d5dd;background:#fff;
+    font-size:12px;font-weight:600;font-family:'Barlow',sans-serif;
+    color:#6b7a8d;cursor:pointer;transition:all .12s;
 }
+.rpt-pill:hover{border-color:var(--cyan);color:var(--cyan-dark)}
+.rpt-pill.active{border-color:var(--cyan);background:var(--cyan);color:#fff}
 .rpt-input{
-    width:100%;
-    border:1px solid #d0d5dd;
-    border-radius:8px;
-    padding:8px 11px;
-    font-size:13px;
-    font-family:'Barlow',sans-serif;
-    color:#1a1a2e;background:#fff;
-    transition:border-color .12s;
+    width:100%;border:1px solid #d0d5dd;border-radius:8px;
+    padding:8px 11px;font-size:13px;font-family:'Barlow',sans-serif;
+    color:#1a1a2e;background:#fff;transition:border-color .12s;
 }
 .rpt-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.10)}
 select.rpt-input{
     appearance:none;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;
-    background-position:right 10px center;
-    padding-right:32px;
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;
 }
-.rpt-date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.rpt-checkbox-group{display:flex;flex-direction:column;gap:6px}
-.rpt-checkbox-item{
-    display:flex;align-items:center;gap:8px;
-    font-size:13px;color:#3d4f5e;cursor:pointer;
-    padding:6px 8px;border-radius:7px;
-    transition:background .1s;
-}
-.rpt-checkbox-item:hover{background:#f0f4f8}
-.rpt-checkbox-item input[type=checkbox]{
-    accent-color:var(--cyan);
-    width:15px;height:15px;flex-shrink:0;
+.rpt-person-results{
+    border:1px solid #e8ecf0;border-radius:8px;background:#fff;
+    max-height:160px;overflow-y:auto;display:none;margin-top:4px;
 }
 
 .reports-drawer-footer{
-    padding:16px 22px;
-    border-top:1px solid #f0f4f8;
-    flex-shrink:0;
-    display:flex;gap:10px;
+    padding:16px 24px;border-top:1px solid #f0f4f8;
+    flex-shrink:0;display:flex;gap:10px;
 }
 .rpt-btn-generate{
-    flex:1;
-    padding:11px 20px;
-    border-radius:10px;
-    border:none;
-    background:var(--cyan);
-    color:#fff;
-    font-size:14px;font-weight:700;
-    font-family:'Barlow',sans-serif;
-    cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:8px;
+    flex:1;padding:11px 20px;border-radius:10px;border:none;
+    background:var(--cyan);color:#fff;
+    font-size:14px;font-weight:700;font-family:'Barlow',sans-serif;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
     transition:background .12s;
 }
-.rpt-btn-generate:hover{background:var(--cyan-dark)}
+.rpt-btn-generate:hover:not(:disabled){background:var(--cyan-dark)}
+.rpt-btn-generate:disabled{opacity:.45;cursor:not-allowed}
 .rpt-btn-reset{
-    padding:11px 16px;
-    border-radius:10px;
-    border:1px solid #d0d5dd;
-    background:transparent;
-    color:#6b7a8d;
-    font-size:13px;font-weight:700;
-    font-family:'Barlow',sans-serif;
-    cursor:pointer;
-    transition:all .12s;
+    padding:11px 16px;border-radius:10px;
+    border:1px solid #d0d5dd;background:transparent;
+    color:#6b7a8d;font-size:13px;font-weight:700;
+    font-family:'Barlow',sans-serif;cursor:pointer;transition:all .12s;
 }
 .rpt-btn-reset:hover{background:#f8f9fa;color:#1a1a2e}
+@keyframes rpt-spin{to{transform:rotate(360deg)}}
+.rpt-spinning{animation:rpt-spin .8s linear infinite;display:inline-block}
 
 /* Reports nav button */
 .reports-nav-btn{
     display:flex;align-items:center;gap:6px;
-    padding:6px 14px;
-    border-radius:8px;
-    border:1px solid #e8ecf0;
-    background:transparent;
-    color:#6b7a8d;
-    font-size:13px;font-weight:600;
-    font-family:'Barlow',sans-serif;
-    cursor:pointer;
-    transition:all .12s;
-    white-space:nowrap;
+    padding:6px 14px;border-radius:8px;border:1px solid #e8ecf0;
+    background:transparent;color:#6b7a8d;
+    font-size:13px;font-weight:600;font-family:'Barlow',sans-serif;
+    cursor:pointer;transition:all .12s;white-space:nowrap;
 }
 .reports-nav-btn:hover{background:var(--cyan-light);color:var(--cyan-dark);border-color:var(--cyan-muted)}
 .reports-nav-btn i{font-size:15px}
@@ -489,7 +479,7 @@ select.rpt-input{
             </div>
             <div>
                 <h2>Reports</h2>
-                <p>Generate a work order report</p>
+                <p>Select a report type to generate</p>
             </div>
         </div>
         <button class="reports-drawer-close" id="reports-close" aria-label="Close reports panel">
@@ -499,72 +489,115 @@ select.rpt-input{
 
     <div class="reports-drawer-body">
 
-        <!-- Step 1: Report Type -->
-        <div class="rpt-section">
-            <div class="rpt-section-title">Report Type</div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-report-type">Select a report</label>
-                <select id="rpt-report-type" class="rpt-input">
-                    <option value="">Choose a report type…</option>
-                    <optgroup label="Active Work">
-                        <option value="active">Active Work Orders — current snapshot</option>
-                        <option value="aging">Aging Report — open orders past X days</option>
-                        <option value="priority">Priority Report — Urgent &amp; High orders</option>
-                    </optgroup>
-                    <optgroup label="People">
-                        <option value="employee">Employee Performance — by staff member</option>
-                        <option value="workload">Workload Distribution — worker assignments</option>
-                    </optgroup>
-                    <optgroup label="History">
-                        <option value="completed">Completed Orders Summary</option>
-                        <option value="building">Orders by Building</option>
-                    </optgroup>
-                </select>
-            </div>
-            <div id="rpt-type-desc" style="font-size:12px;color:#6b7a8d;line-height:1.55;display:none;padding:8px 10px;background:#f0f8fb;border-radius:8px;border-left:3px solid var(--cyan)"></div>
-        </div>
+        <!-- Report type cards -->
+        <div class="rpt-card-grid">
 
-        <!-- Date Range — shown for most reports -->
-        <div class="rpt-section rpt-group" id="rpt-grp-dates" style="display:none">
-            <div class="rpt-section-title">Date Range</div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-quick-range">Quick Select</label>
-                <select id="rpt-quick-range" class="rpt-input">
-                    <option value="">Custom range…</option>
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                    <option value="ytd">Year to date</option>
-                    <option value="all">All time</option>
-                </select>
-            </div>
-            <div class="rpt-date-row">
-                <div class="rpt-field">
-                    <label class="rpt-label" for="rpt-date-from">From</label>
-                    <input type="date" id="rpt-date-from" class="rpt-input">
-                </div>
-                <div class="rpt-field">
-                    <label class="rpt-label" for="rpt-date-to">To</label>
-                    <input type="date" id="rpt-date-to" class="rpt-input">
+            <div class="rpt-card" data-report="active_maint">
+                <div class="rpt-card-icon"><i class="ti ti-tool"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Active Maintenance</div>
+                    <div class="rpt-card-hint">All open maintenance orders</div>
                 </div>
             </div>
-        </div>
 
-        <!-- Order Type + Building — shared filter -->
-        <div class="rpt-section rpt-group" id="rpt-grp-type-building" style="display:none">
-            <div class="rpt-section-title">Filters</div>
-            <div class="rpt-field" id="rpt-grp-order-type">
-                <label class="rpt-label" for="rpt-type">Order Type</label>
-                <select id="rpt-type" class="rpt-input">
-                    <option value="">All types</option>
-                    <option value="Technology">Technology</option>
-                    <option value="Maintenance">Maintenance</option>
-                </select>
+            <div class="rpt-card" data-report="active_tech">
+                <div class="rpt-card-icon"><i class="ti ti-device-laptop"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Active Technology</div>
+                    <div class="rpt-card-hint">All open technology orders</div>
+                </div>
             </div>
-            <div class="rpt-field" id="rpt-grp-building">
-                <label class="rpt-label" for="rpt-building">Building</label>
+
+            <div class="rpt-card" data-report="aging">
+                <div class="rpt-card-icon"><i class="ti ti-clock-exclamation"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Aging Report</div>
+                    <div class="rpt-card-hint">Orders open past a threshold</div>
+                </div>
+            </div>
+
+            <div class="rpt-card" data-report="by_building">
+                <div class="rpt-card-icon"><i class="ti ti-building"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">By Building</div>
+                    <div class="rpt-card-hint">All orders for one school</div>
+                </div>
+            </div>
+
+            <div class="rpt-card" data-report="completed_staff">
+                <div class="rpt-card-icon"><i class="ti ti-user-check"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Completed by Staff</div>
+                    <div class="rpt-card-hint">One person's closed orders</div>
+                </div>
+            </div>
+
+            <div class="rpt-card" data-report="current_staff">
+                <div class="rpt-card-icon"><i class="ti ti-user-bolt"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Current by Staff</div>
+                    <div class="rpt-card-hint">One person's active work</div>
+                </div>
+            </div>
+
+            <div class="rpt-card rpt-card-full" data-report="workload">
+                <div class="rpt-card-icon"><i class="ti ti-chart-bar"></i></div>
+                <div class="rpt-card-text">
+                    <div class="rpt-card-name">Workload Distribution</div>
+                    <div class="rpt-card-hint">All workers compared — assigned vs. closed, side by side</div>
+                </div>
+            </div>
+
+        </div><!-- /rpt-card-grid -->
+
+        <!-- Dynamic options — revealed on card selection -->
+        <div class="rpt-options" id="rpt-options" style="display:none">
+
+            <!-- Aging threshold -->
+            <div id="rpt-opt-aging" style="display:none">
+                <div class="rpt-opt-label">Show orders open longer than</div>
+                <div class="rpt-pills" id="aging-pills">
+                    <button class="rpt-pill" data-val="7">&gt;7 days</button>
+                    <button class="rpt-pill active" data-val="14">&gt;14 days</button>
+                    <button class="rpt-pill" data-val="30">&gt;30 days</button>
+                </div>
+            </div>
+
+            <!-- Period — completed by staff -->
+            <div id="rpt-opt-period-staff" style="display:none">
+                <div class="rpt-opt-label">Period</div>
+                <div class="rpt-pills" id="period-staff-pills">
+                    <button class="rpt-pill active" data-val="30">Last 30 days</button>
+                    <button class="rpt-pill" data-val="90">Last 90 days</button>
+                    <button class="rpt-pill" data-val="365">Last year</button>
+                </div>
+            </div>
+
+            <!-- Period — workload distribution -->
+            <div id="rpt-opt-period-workload" style="display:none">
+                <div class="rpt-opt-label">Period</div>
+                <div class="rpt-pills" id="period-workload-pills">
+                    <button class="rpt-pill active" data-val="30">30 days</button>
+                    <button class="rpt-pill" data-val="60">60 days</button>
+                    <button class="rpt-pill" data-val="90">90 days</button>
+                    <button class="rpt-pill" data-val="180">180 days</button>
+                    <button class="rpt-pill" data-val="365">1 year</button>
+                </div>
+            </div>
+
+            <!-- Person search -->
+            <div id="rpt-opt-person" style="display:none">
+                <div class="rpt-opt-label">Staff Member</div>
+                <input type="text" id="rpt-person-search" class="rpt-input" placeholder="Type a name…" autocomplete="off">
+                <div class="rpt-person-results" id="rpt-person-results"></div>
+                <input type="hidden" id="rpt-person-email" value="">
+            </div>
+
+            <!-- Building picker -->
+            <div id="rpt-opt-building" style="display:none">
+                <div class="rpt-opt-label">Building</div>
                 <select id="rpt-building" class="rpt-input">
-                    <option value="">All buildings</option>
+                    <option value="">Select a building…</option>
                     <optgroup label="High Schools">
                         <?php foreach (['CHS','BHS','THS','WPCC'] as $b): ?>
                         <option value="<?= $b ?>"><?= $b ?></option>
@@ -582,94 +615,14 @@ select.rpt-input{
                     </optgroup>
                 </select>
             </div>
-            <div class="rpt-field" id="rpt-grp-priority" style="display:none">
-                <label class="rpt-label" for="rpt-priority">Priority</label>
-                <select id="rpt-priority" class="rpt-input">
-                    <option value="">All priorities</option>
-                    <option value="Urgent">Urgent</option>
-                    <option value="High">High</option>
-                    <option value="Mid">Mid</option>
-                    <option value="Low">Low</option>
-                </select>
-            </div>
-        </div>
 
-        <!-- Aging threshold — only for aging report -->
-        <div class="rpt-section rpt-group" id="rpt-grp-aging" style="display:none">
-            <div class="rpt-section-title">Aging Threshold</div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-aging-days">Show orders open longer than</label>
-                <select id="rpt-aging-days" class="rpt-input">
-                    <option value="7">7 days</option>
-                    <option value="14">14 days</option>
-                    <option value="30" selected>30 days</option>
-                    <option value="60">60 days</option>
-                    <option value="90">90 days</option>
-                </select>
-            </div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-aging-status">Status to include</label>
-                <select id="rpt-aging-status" class="rpt-input">
-                    <option value="">Any open status</option>
-                    <option value="Pending Approval">Pending Approval</option>
-                    <option value="Approved">Approved</option>
-                    <option value="In Progress">In Progress</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Employee picker — for employee performance + workload -->
-        <div class="rpt-section rpt-group" id="rpt-grp-employee" style="display:none">
-            <div class="rpt-section-title">Staff Member</div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-emp-role">Filter by role</label>
-                <select id="rpt-emp-role" class="rpt-input">
-                    <option value="">All roles</option>
-                    <option value="BT">Building Technician</option>
-                    <option value="BP">Building Principal</option>
-                    <option value="MW">Maintenance Worker</option>
-                    <option value="BC">Building Custodian</option>
-                    <option value="BM">Building Maintenance</option>
-                    <option value="MT">Technology Manager</option>
-                    <option value="MM">Maintenance Manager</option>
-                </select>
-            </div>
-            <div class="rpt-field">
-                <label class="rpt-label" for="rpt-emp-search">Search employee</label>
-                <input type="text" id="rpt-emp-search" class="rpt-input" placeholder="Type a name…" autocomplete="off">
-                <div id="rpt-emp-results" style="border:1px solid #e8ecf0;border-radius:8px;background:#fff;max-height:160px;overflow-y:auto;display:none;margin-top:4px"></div>
-                <input type="hidden" id="rpt-emp-email" value="">
-            </div>
-        </div>
-
-        <!-- Include in report — shown for most report types -->
-        <div class="rpt-section rpt-group" id="rpt-grp-include" style="display:none">
-            <div class="rpt-section-title">Include in Report</div>
-            <div class="rpt-checkbox-group">
-                <label class="rpt-checkbox-item">
-                    <input type="checkbox" id="rpt-inc-notes" checked>
-                    Activity log / notes
-                </label>
-                <label class="rpt-checkbox-item">
-                    <input type="checkbox" id="rpt-inc-submitter" checked>
-                    Submitter details
-                </label>
-                <label class="rpt-checkbox-item">
-                    <input type="checkbox" id="rpt-inc-assignees" checked>
-                    Assigned workers
-                </label>
-                <label class="rpt-checkbox-item">
-                    <input type="checkbox" id="rpt-inc-resolved" checked>
-                    Resolved by
-                </label>
-            </div>
-        </div>
+        </div><!-- /rpt-options -->
 
     </div><!-- /reports-drawer-body -->
 
     <div class="reports-drawer-footer">
         <button class="rpt-btn-reset" id="rpt-reset">Reset</button>
-        <button class="rpt-btn-generate" id="rpt-generate">
+        <button class="rpt-btn-generate" id="rpt-generate" disabled>
             <i class="ti ti-file-type-pdf" aria-hidden="true"></i>
             Generate PDF
         </button>
@@ -727,11 +680,8 @@ select.rpt-input{
     const reportsClose   = document.getElementById('reports-close');
     const rptReset       = document.getElementById('rpt-reset');
     const rptGenerate    = document.getElementById('rpt-generate');
-    const rptReportType  = document.getElementById('rpt-report-type');
-    const rptTypeDesc    = document.getElementById('rpt-type-desc');
-    const rptQuickRange  = document.getElementById('rpt-quick-range');
-    const rptDateFrom    = document.getElementById('rpt-date-from');
-    const rptDateTo      = document.getElementById('rpt-date-to');
+    const rptOptions     = document.getElementById('rpt-options');
+    let   selectedReport = '';
 
     function openReports() {
         reportsDrawer.classList.add('open');
@@ -750,185 +700,172 @@ select.rpt-input{
         if (e.key === 'Escape') closeReports();
     });
 
-    // ── Report type config ────────────────────────────────────
-    const rptConfig = {
-        active: {
-            desc: 'A snapshot of all currently active work orders — pending, approved, and in progress. Filter by type, building, or priority.',
-            groups: ['dates', 'type-building', 'include'],
-            extras: { priority: true }
-        },
-        aging: {
-            desc: 'Orders that have been open without resolution past a threshold you set. Useful for spotting work that is falling through the cracks.',
-            groups: ['aging', 'type-building', 'include'],
-            extras: {}
-        },
-        priority: {
-            desc: 'All Urgent and High priority orders regardless of status. A quick "what\'s on fire" view for board meetings or emergency reviews.',
-            groups: ['dates', 'type-building', 'include'],
-            extras: { priority: true }
-        },
-        employee: {
-            desc: 'All work orders touched by a specific staff member — what they completed, approved, or rejected — within a date range. Your primary evaluation tool.',
-            groups: ['dates', 'employee', 'type-building', 'include'],
-            extras: {}
-        },
-        workload: {
-            desc: 'How many orders are currently assigned to each worker, and how many they have completed in the selected period. Helps identify staffing imbalances.',
-            groups: ['dates', 'employee', 'include'],
-            extras: {}
-        },
-        completed: {
-            desc: 'All closed work orders in a date range. Filter by type, building, or who resolved them. Good for monthly and quarterly reviews.',
-            groups: ['dates', 'type-building', 'include'],
-            extras: {}
-        },
-        building: {
-            desc: 'All work orders for a selected school, any status, any date range. Ideal for principal meetings or building-level reviews.',
-            groups: ['dates', 'type-building', 'include'],
-            extras: {}
-        },
+    // ── Card selection ────────────────────────────────────────
+    const rptCards = document.querySelectorAll('.rpt-card');
+    const OPT_IDS  = ['rpt-opt-aging','rpt-opt-period-staff','rpt-opt-period-workload','rpt-opt-person','rpt-opt-building'];
+    const optMap   = {
+        active_maint:   [],
+        active_tech:    [],
+        aging:          ['rpt-opt-aging'],
+        by_building:    ['rpt-opt-building'],
+        completed_staff:['rpt-opt-period-staff','rpt-opt-person'],
+        current_staff:  ['rpt-opt-person'],
+        workload:       ['rpt-opt-period-workload'],
     };
 
-    function showGroups(cfg) {
-        document.querySelectorAll('.rpt-group').forEach(function(g) { g.style.display = 'none'; });
-        if (!cfg) return;
-        cfg.groups.forEach(function(id) {
-            const el = document.getElementById('rpt-grp-' + id);
-            if (el) el.style.display = '';
-        });
-        // Show/hide priority field within type-building group
-        const priField = document.getElementById('rpt-grp-priority');
-        if (priField) priField.style.display = (cfg.extras && cfg.extras.priority) ? '' : 'none';
+    function showOptions(report) {
+        OPT_IDS.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
+        const show = optMap[report] || [];
+        if (show.length) {
+            show.forEach(function(id){ document.getElementById(id).style.display = ''; });
+            rptOptions.style.display = '';
+        } else {
+            rptOptions.style.display = 'none';
+        }
     }
 
-    rptReportType.addEventListener('change', function() {
-        const val = this.value;
-        const cfg = rptConfig[val];
-        if (cfg) {
-            rptTypeDesc.textContent = cfg.desc;
-            rptTypeDesc.style.display = '';
-            showGroups(cfg);
+    rptCards.forEach(function(card) {
+        card.addEventListener('click', function() {
+            rptCards.forEach(function(c){ c.classList.remove('selected'); });
+            this.classList.add('selected');
+            selectedReport = this.dataset.report;
+            // Clear person on switch
+            document.getElementById('rpt-person-search').value = '';
+            document.getElementById('rpt-person-email').value  = '';
+            document.getElementById('rpt-person-results').style.display = 'none';
+            showOptions(selectedReport);
             rptGenerate.disabled = false;
-        } else {
-            rptTypeDesc.style.display = 'none';
-            showGroups(null);
-            rptGenerate.disabled = true;
-        }
+        });
     });
 
-    // Disable generate until report type is chosen
-    rptGenerate.disabled = true;
-
-    // ── Quick date range ──────────────────────────────────────
-    rptQuickRange.addEventListener('change', function() {
-        const val   = this.value;
-        const today = new Date();
-        const fmt   = function(d) { return d.toISOString().split('T')[0]; };
-        rptDateTo.value = fmt(today);
-        if (val === '7')  { const d = new Date(today); d.setDate(d.getDate()-7);  rptDateFrom.value = fmt(d); }
-        if (val === '30') { const d = new Date(today); d.setDate(d.getDate()-30); rptDateFrom.value = fmt(d); }
-        if (val === '90') { const d = new Date(today); d.setDate(d.getDate()-90); rptDateFrom.value = fmt(d); }
-        if (val === 'ytd'){ rptDateFrom.value = today.getFullYear() + '-01-01'; }
-        if (val === 'all'){ rptDateFrom.value = ''; rptDateTo.value = ''; }
+    // ── Pill toggles ──────────────────────────────────────────
+    document.querySelectorAll('.rpt-pills').forEach(function(group) {
+        group.querySelectorAll('.rpt-pill').forEach(function(pill) {
+            pill.addEventListener('click', function() {
+                group.querySelectorAll('.rpt-pill').forEach(function(p){ p.classList.remove('active'); });
+                this.classList.add('active');
+            });
+        });
     });
 
-    // ── Employee search ───────────────────────────────────────
-    const empSearch  = document.getElementById('rpt-emp-search');
-    const empResults = document.getElementById('rpt-emp-results');
-    const empEmail   = document.getElementById('rpt-emp-email');
-    const empRole    = document.getElementById('rpt-emp-role');
+    // ── Person search ─────────────────────────────────────────
+    const personSearch  = document.getElementById('rpt-person-search');
+    const personResults = document.getElementById('rpt-person-results');
+    const personEmail   = document.getElementById('rpt-person-email');
+    // Roles this manager is allowed to see
+    const rptAllowedRoles = <?= json_encode(
+        $user_role === 'MM' ? ['MW','BM','BC'] :
+        ($user_role === 'MT' ? ['BT'] : ['MW','BM','BC','BT'])
+    ) ?>;
 
-    function searchEmployees() {
-        const q    = empSearch.value.trim();
-        const role = empRole.value;
-        if (q.length < 2) { empResults.style.display = 'none'; return; }
-        const params = new URLSearchParams({ q: q });
-        if (role) params.append('role', role);
-        fetch('report_emp_search.php?' + params.toString())
-            .then(function(r) { return r.json(); })
+    function searchPerson() {
+        const q = personSearch.value.trim();
+        if (q.length < 2) { personResults.style.display = 'none'; return; }
+        fetch('report_emp_search.php?' + new URLSearchParams({ q: q }).toString())
+            .then(function(r){ return r.json(); })
             .then(function(data) {
-                empResults.innerHTML = '';
+                data = data.filter(function(e){ return rptAllowedRoles.indexOf(e.role) !== -1; });
+                personResults.innerHTML = '';
                 if (!data.length) {
-                    empResults.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#aab0bb">No matches found</div>';
+                    personResults.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#aab0bb">No matches</div>';
                 } else {
                     data.forEach(function(emp) {
                         const item = document.createElement('div');
                         item.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f4f8;transition:background .1s';
                         item.innerHTML = '<strong>' + emp.name + '</strong> <span style="color:#aab0bb;font-size:11px">· ' + emp.role_label + '</span>';
-                        item.addEventListener('mouseenter', function() { this.style.background = '#f0f8fb'; });
-                        item.addEventListener('mouseleave', function() { this.style.background = ''; });
+                        item.addEventListener('mouseenter', function(){ this.style.background = '#f0f8fb'; });
+                        item.addEventListener('mouseleave', function(){ this.style.background = ''; });
                         item.addEventListener('click', function() {
-                            empSearch.value      = emp.name;
-                            empEmail.value       = emp.email;
-                            empResults.style.display = 'none';
+                            personSearch.value = emp.name;
+                            personEmail.value  = emp.email;
+                            personResults.style.display = 'none';
                         });
-                        empResults.appendChild(item);
+                        personResults.appendChild(item);
                     });
                 }
-                empResults.style.display = '';
+                personResults.style.display = 'block';
             })
-            .catch(function() { empResults.style.display = 'none'; });
+            .catch(function(){ personResults.style.display = 'none'; });
     }
 
-    if (empSearch) {
-        empSearch.addEventListener('input', searchEmployees);
-        empRole.addEventListener('change', function() {
-            empEmail.value = '';
-            empSearch.value = '';
-            empResults.style.display = 'none';
-        });
-        document.addEventListener('click', function(e) {
-            if (!empResults.contains(e.target) && e.target !== empSearch)
-                empResults.style.display = 'none';
-        });
-    }
+    personSearch.addEventListener('input', searchPerson);
+    document.addEventListener('click', function(e) {
+        if (!personResults.contains(e.target) && e.target !== personSearch)
+            personResults.style.display = 'none';
+    });
 
     // ── Reset ─────────────────────────────────────────────────
     rptReset.addEventListener('click', function() {
-        rptReportType.value   = '';
-        rptTypeDesc.style.display = 'none';
-        showGroups(null);
-        rptDateFrom.value     = '';
-        rptDateTo.value       = '';
-        rptQuickRange.value   = '';
-        document.getElementById('rpt-type').value         = '';
-        document.getElementById('rpt-building').value     = '';
-        document.getElementById('rpt-priority').value     = '';
-        document.getElementById('rpt-aging-days').value   = '30';
-        document.getElementById('rpt-aging-status').value = '';
-        document.getElementById('rpt-emp-role').value     = '';
-        empSearch.value = '';
-        empEmail.value  = '';
-        empResults.style.display = 'none';
-        document.getElementById('rpt-inc-notes').checked     = true;
-        document.getElementById('rpt-inc-submitter').checked = true;
-        document.getElementById('rpt-inc-assignees').checked = true;
-        document.getElementById('rpt-inc-resolved').checked  = true;
+        rptCards.forEach(function(c){ c.classList.remove('selected'); });
+        selectedReport = '';
+        rptOptions.style.display = 'none';
+        OPT_IDS.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
+        personSearch.value = '';
+        personEmail.value  = '';
+        personResults.style.display = 'none';
+        document.getElementById('rpt-building').value = '';
+        // Restore pill defaults
+        var defaults = { 'aging-pills':'14', 'period-staff-pills':'30', 'period-workload-pills':'30' };
+        Object.keys(defaults).forEach(function(groupId) {
+            var group = document.getElementById(groupId);
+            group.querySelectorAll('.rpt-pill').forEach(function(p){ p.classList.remove('active'); });
+            group.querySelector('[data-val="' + defaults[groupId] + '"]').classList.add('active');
+        });
         rptGenerate.disabled = true;
     });
 
-    // ── Generate — stream PDF in new tab ─────────────────────
+    // ── Generate ──────────────────────────────────────────────
     rptGenerate.addEventListener('click', function() {
-        const reportType = rptReportType.value;
-        if (!reportType) return;
+        if (!selectedReport) return;
+
+        // Validate person-required reports
+        if (['completed_staff','current_staff'].indexOf(selectedReport) !== -1 && !personEmail.value) {
+            personSearch.focus();
+            personSearch.style.borderColor = '#dc2626';
+            setTimeout(function(){ personSearch.style.borderColor = ''; }, 1500);
+            return;
+        }
+        // Validate building
+        if (selectedReport === 'by_building' && !document.getElementById('rpt-building').value) {
+            document.getElementById('rpt-building').style.borderColor = '#dc2626';
+            setTimeout(function(){ document.getElementById('rpt-building').style.borderColor = ''; }, 1500);
+            return;
+        }
 
         const params = new URLSearchParams();
-        params.set('report_type',   reportType);
-        params.set('date_from',     rptDateFrom.value);
-        params.set('date_to',       rptDateTo.value);
-        params.set('order_type',    document.getElementById('rpt-type').value);
-        params.set('building',      document.getElementById('rpt-building').value);
-        params.set('priority',      document.getElementById('rpt-priority').value);
-        params.set('aging_days',    document.getElementById('rpt-aging-days').value);
-        params.set('aging_status',  document.getElementById('rpt-aging-status').value);
-        params.set('emp_email',     document.getElementById('rpt-emp-email').value);
-        params.set('emp_role',      document.getElementById('rpt-emp-role').value);
-        params.set('inc_notes',     document.getElementById('rpt-inc-notes').checked     ? '1' : '0');
-        params.set('inc_submitter', document.getElementById('rpt-inc-submitter').checked ? '1' : '0');
-        params.set('inc_assignees', document.getElementById('rpt-inc-assignees').checked ? '1' : '0');
-        params.set('inc_resolved',  document.getElementById('rpt-inc-resolved').checked  ? '1' : '0');
+        params.set('report_type', selectedReport);
 
+        if (selectedReport === 'aging') {
+            var p = document.querySelector('#aging-pills .rpt-pill.active');
+            params.set('aging_days', p ? p.dataset.val : '14');
+        }
+        if (selectedReport === 'completed_staff') {
+            var p = document.querySelector('#period-staff-pills .rpt-pill.active');
+            params.set('period_days', p ? p.dataset.val : '30');
+            params.set('emp_email', personEmail.value);
+            params.set('emp_name',  personSearch.value);
+        }
+        if (selectedReport === 'current_staff') {
+            params.set('emp_email', personEmail.value);
+            params.set('emp_name',  personSearch.value);
+        }
+        if (selectedReport === 'by_building') {
+            params.set('building', document.getElementById('rpt-building').value);
+        }
+        if (selectedReport === 'workload') {
+            var p = document.querySelector('#period-workload-pills .rpt-pill.active');
+            params.set('period_days', p ? p.dataset.val : '30');
+        }
+
+        // Loading state — restored after 3 s (PDF opens in new tab)
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="rpt-spinning"><i class="ti ti-loader-2"></i></span>&nbsp;Generating…';
         window.open('report_generate.php?' + params.toString(), '_blank');
+        setTimeout(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-file-type-pdf"></i> Generate PDF';
+        }, 3000);
     });
 
     <?php endif; ?>

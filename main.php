@@ -95,19 +95,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
         $upd2->execute();
         $upd2->close();
 
+        $email_err = null;
         require_once __DIR__ . '/wo_mailer.php';
         if ($type === 'Technology') {
-            send_tech_wo_email(
-                $conn,
-                $wo_num,
-                $building,
-                $room,
-                $problem_type,
-                $description,
-                $priority,
-                $submitted_name,
-                $user_email
-            );
+            try {
+                send_tech_wo_email(
+                    $conn,
+                    $wo_num,
+                    $building,
+                    $room,
+                    $problem_type,
+                    $description,
+                    $priority,
+                    $submitted_name,
+                    $user_email
+                );
+            } catch (\Throwable $e) {
+                $email_err = get_class($e) . ': ' . $e->getMessage() . ' — ' . basename($e->getFile()) . ':' . $e->getLine();
+                error_log('send_tech_wo_email threw: ' . $email_err);
+            }
         } else {
             send_maintenance_submit_email(
                 $conn,
@@ -122,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
             );
         }
 
-        ob_end_clean(); echo json_encode(['success' => true, 'wo_num' => $wo_num, 'photo_path' => $photo_path ?? '']);
+        ob_end_clean(); echo json_encode(['success' => true, 'wo_num' => $wo_num, 'photo_path' => $photo_path ?? '', 'email_err' => $email_err]);
     } else {
         ob_end_clean(); echo json_encode(['success' => false, 'message' => 'Database error. Please try again.']);
     }
@@ -163,7 +169,7 @@ if ($user_role === 'A') {
     $res = $db->query("SELECT * FROM orders WHERE type = 'Maintenance' AND (current_handler IN ('MM','worker') OR status IN ('Completed','Rejected')) ORDER BY created_at DESC");
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
 } elseif ($user_role === 'BP') {
-    $stmt = $db->prepare("SELECT * FROM orders WHERE building = ? ORDER BY created_at DESC");
+    $stmt = $db->prepare("SELECT * FROM orders WHERE building = ? AND NOT (type = 'Technology' AND current_handler = 'BT') ORDER BY created_at DESC");
     $stmt->bind_param('s', $user_building);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -202,6 +208,17 @@ if ($user_role === 'A') {
     $stmt->close();
 }
 $db->close();
+
+$_default_filter = 'all';
+if (in_array($user_role, ['MW', 'BC', 'BM'])) {
+    foreach ($orders as $_o) {
+        if ($_o['status'] === 'In Progress') { $_default_filter = 'In Progress'; break; }
+    }
+} else {
+    foreach ($orders as $_o) {
+        if ($_o['status'] === 'Pending Approval') { $_default_filter = 'Pending Approval'; break; }
+    }
+}
 
 $current_page = 'main';
 ?>
@@ -643,7 +660,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <!-- Work Orders table -->
     <div class="section-head">
-        <h2><?= in_array($user_role, ['MW','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
+        <h2 id="wo-section-title"><?= in_array($user_role, ['MW','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
         <div class="filter-tabs">
             <button class="filter-tab active" data-filter="all">All</button>
             <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
@@ -1290,7 +1307,7 @@ const priOrder    = { 'Urgent': 0, 'High': 1, 'Mid': 2, 'Low': 3, '': 4 };
 const statusOrder = { 'Pending Approval': 0, 'Approved': 1, 'In Progress': 2, 'Completed': 3, 'Rejected': 4, '': 5 };
 let sortCol     = null;
 let sortDir     = 1;
-let activeFilter = 'all';
+let activeFilter = <?= json_encode($_default_filter) ?>;
 
 function getSortValue(row, col) {
     const d = row.dataset;
@@ -1308,7 +1325,18 @@ function getSortValue(row, col) {
     }
 }
 
+const _filterTitles = {
+    'all':              'All Work Orders',
+    'Pending Approval': 'Pending Work Orders',
+    'Approved':         'Approved Work Orders',
+    'In Progress':      'Work Orders in Progress',
+    'Completed':        'Completed Work Orders',
+    'Rejected':         'Rejected Work Orders',
+};
+
 function applyTable() {
+    const _titleEl = document.getElementById('wo-section-title');
+    if (_titleEl) _titleEl.textContent = _filterTitles[activeFilter] || 'Work Orders';
     const tbody = document.getElementById('wo-tbody');
     let rows = Array.from(tbody.querySelectorAll('.wo-row'));
     rows.forEach(function(row) {
@@ -1350,6 +1378,15 @@ if (mobileFilterSel) {
         applyTable();
     });
 }
+
+// Apply default filter on page load
+(function() {
+    document.querySelectorAll('.filter-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.filter === activeFilter);
+    });
+    if (mobileFilterSel) mobileFilterSel.value = activeFilter;
+    applyTable();
+}());
 
 document.querySelectorAll('.wo-table th.sortable').forEach(function(th) {
     th.addEventListener('click', function() {
