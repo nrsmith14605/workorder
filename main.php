@@ -508,6 +508,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .form-spacer{height:16px}
 
 /* ── MOBILE RESPONSIVE ── */
+
+/* Swipeable filter chips — hidden on desktop */
+.mobile-filter-chips{display:none}
+
 @media(max-width:768px){
 
     /* Nav */
@@ -529,12 +533,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         margin-bottom:24px;
     }
 
-    /* Section head: stack title + dropdown on separate lines */
+    /* Section head: just the title, chips go below */
     .section-head{
         flex-direction:column;
         align-items:flex-start;
-        gap:10px;
-        margin-bottom:12px;
+        gap:8px;
+        margin-bottom:0;
     }
     .section-head h2{
         font-size:19px;
@@ -542,57 +546,86 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         line-height:1.2;
     }
 
-    /* Hide pill tabs on mobile */
+    /* Hide desktop pill tabs */
     .filter-tabs{display:none}
 
-    /* Show mobile dropdown instead */
-    .filter-select-wrap{display:block}
+    /* Show swipeable chips */
+    .mobile-filter-chips{
+        display:flex;
+        gap:8px;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+        padding:10px 0 12px;
+        margin-bottom:10px;
+        scrollbar-width:none;
+    }
+    .mobile-filter-chips::-webkit-scrollbar{display:none}
+    .chip{
+        flex-shrink:0;
+        padding:7px 16px;
+        border-radius:20px;
+        border:1.5px solid #e8ecf0;
+        background:#fff;
+        font-size:13px;
+        font-weight:600;
+        color:#6b7a8d;
+        font-family:'Barlow',sans-serif;
+        cursor:pointer;
+        white-space:nowrap;
+        -webkit-tap-highlight-color:transparent;
+    }
+    .chip.active{
+        background:var(--cyan);
+        color:#fff;
+        border-color:var(--cyan);
+    }
 
-    /* WO table: reset layout + hide less-important columns */
-    .wo-table{table-layout:auto}
+    /* WO table: no horizontal scroll, fixed columns that fit the screen
+       Visible: WO#(1), Building(4), Room(5), Problem Type(8), Priority(9), Status(10)
+       Hidden:  Submitted By(2), Type(3), Description(6), Avail.Time(7), Submitted(11) */
+    .wo-table-wrap{overflow-x:hidden}
+    .wo-table{table-layout:fixed;width:100%}
     .wo-table colgroup col:nth-child(2),
+    .wo-table colgroup col:nth-child(3),
     .wo-table colgroup col:nth-child(6),
     .wo-table colgroup col:nth-child(7),
-    .wo-table colgroup col:nth-child(8),
     .wo-table colgroup col:nth-child(11)
     {display:none;width:0}
     .wo-table th:nth-child(2),
     .wo-table td:nth-child(2),
+    .wo-table th:nth-child(3),
+    .wo-table td:nth-child(3),
     .wo-table th:nth-child(6),
     .wo-table td:nth-child(6),
     .wo-table th:nth-child(7),
     .wo-table td:nth-child(7),
-    .wo-table th:nth-child(8),
-    .wo-table td:nth-child(8),
     .wo-table th:nth-child(11),
     .wo-table td:nth-child(11)
     {display:none}
 
-    .wo-table{font-size:12px}
-    .wo-table td{padding:10px 7px}
-    .wo-table th{padding:8px 7px;font-size:9px}
-    .wo-id{font-size:13px}
-    .badge{font-size:10px;padding:3px 7px}
-    .pri{font-size:10px;padding:3px 7px}
-    .wo-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    /* Column widths for the 6 visible columns — Problem Type gets what's left and truncates */
+    .wo-table colgroup col:nth-child(1){width:18%}
+    .wo-table colgroup col:nth-child(4){width:16%}
+    .wo-table colgroup col:nth-child(5){width:14%}
+    .wo-table colgroup col:nth-child(8){width:22%}
+    .wo-table colgroup col:nth-child(9){width:14%}
+    .wo-table colgroup col:nth-child(10){width:16%}
+
+    /* Problem Type cell truncates with ellipsis */
+    .wo-table td:nth-child(8){
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .wo-table{font-size:11px}
+    .wo-table td{padding:10px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wo-table th{padding:8px 6px;font-size:9px}
+    .wo-id{font-size:12px}
+    .badge{font-size:10px;padding:3px 6px}
+    .pri{font-size:10px;padding:3px 6px}
 }
 
-/* Mobile filter dropdown — hidden on desktop */
-.filter-select-wrap{display:none}
-.filter-select{
-    padding:7px 32px 7px 12px;
-    border-radius:20px;
-    border:1px solid #d0d5dd;
-    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
-    appearance:none;
-    font-size:13px;
-    font-weight:600;
-    font-family:'Barlow',sans-serif;
-    color:#1a1a2e;
-    cursor:pointer;
-    min-width:160px;
-}
-.filter-select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
 
 /* ── FOOTER ── */
 .site-footer{
@@ -662,7 +695,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     <div class="section-head">
         <h2 id="wo-section-title"><?= in_array($user_role, ['MW','BC','BM']) ? 'My Assigned Work Orders' : 'My Work Orders' ?></h2>
         <div class="filter-tabs">
-            <button class="filter-tab active" data-filter="all">All</button>
+            <button class="filter-tab<?= $_default_filter==='all' ? ' active' : '' ?>" data-filter="all">All</button>
             <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
             <button class="filter-tab" data-filter="Pending Approval">Pending</button>
             <button class="filter-tab" data-filter="Approved">Approved</button>
@@ -671,19 +704,17 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <button class="filter-tab" data-filter="Completed">Completed</button>
             <button class="filter-tab" data-filter="Rejected">Rejected</button>
         </div>
-        <!-- Mobile filter dropdown (hidden on desktop via CSS) -->
-        <div class="filter-select-wrap">
-            <select class="filter-select" id="filter-select-mobile">
-                <option value="all">All Orders</option>
-                <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
-                <option value="Pending Approval">Pending</option>
-                <option value="Approved">Approved</option>
-                <?php endif; ?>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Rejected">Rejected</option>
-            </select>
-        </div>
+    </div>
+    <!-- Mobile swipeable filter chips (hidden on desktop via CSS) -->
+    <div class="mobile-filter-chips" id="mobile-chips">
+        <button class="chip<?= $_default_filter==='all' ? ' active' : '' ?>" data-filter="all">All</button>
+        <?php if (!in_array($user_role, ['MW','BC','BM'])): ?>
+        <button class="chip" data-filter="Pending Approval">Pending</button>
+        <button class="chip" data-filter="Approved">Approved</button>
+        <?php endif; ?>
+        <button class="chip" data-filter="In Progress">In Progress</button>
+        <button class="chip" data-filter="Completed">Completed</button>
+        <button class="chip" data-filter="Rejected">Rejected</button>
     </div>
 
     <div class="wo-table-wrap">
@@ -1361,30 +1392,35 @@ document.querySelectorAll('.filter-tab').forEach(function(tab) {
         document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         activeFilter = this.dataset.filter;
-        var mSel = document.getElementById('filter-select-mobile');
-        if (mSel) mSel.value = activeFilter;
+        syncChips(activeFilter);
         applyTable();
     });
 });
 
-// Mobile filter dropdown sync
-var mobileFilterSel = document.getElementById('filter-select-mobile');
-if (mobileFilterSel) {
-    mobileFilterSel.addEventListener('change', function() {
-        activeFilter = this.value;
+// Mobile swipeable chips
+function syncChips(filter) {
+    document.querySelectorAll('.chip').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.filter === filter);
+    });
+}
+document.querySelectorAll('.chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+        activeFilter = this.dataset.filter;
+        syncChips(activeFilter);
+        // keep desktop tabs in sync too
         document.querySelectorAll('.filter-tab').forEach(function(t) {
             t.classList.toggle('active', t.dataset.filter === activeFilter);
         });
         applyTable();
     });
-}
+});
 
 // Apply default filter on page load
 (function() {
     document.querySelectorAll('.filter-tab').forEach(function(t) {
         t.classList.toggle('active', t.dataset.filter === activeFilter);
     });
-    if (mobileFilterSel) mobileFilterSel.value = activeFilter;
+    syncChips(activeFilter);
     applyTable();
 }());
 
