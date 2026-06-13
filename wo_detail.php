@@ -78,10 +78,23 @@ $stmt3->close();
 // Assignable workers (for managers)
 $assignable_workers = [];
 if (in_array($user_role, ['MT','MM','A'])) {
-    $res = $db->query("SELECT first_name, last_name, email, role, building FROM users WHERE role IN ('MW','BC','BM') AND active=1 ORDER BY FIELD(role,'MW','BC','BM'),last_name,first_name");
+    $order_is_maint = $order['type'] === 'Maintenance';
+    if ($order_is_maint) {
+        $res = $db->query("SELECT first_name, last_name, email, role, building FROM users WHERE role IN ('MW','BC','BM') AND active=1 ORDER BY FIELD(role,'MW','BC','BM'),last_name,first_name");
+    } else {
+        $res = $db->query("SELECT first_name, last_name, email, role, building FROM users WHERE role = 'BT' AND active=1 ORDER BY last_name,first_name");
+    }
     if ($res) while ($w = $res->fetch_assoc()) $assignable_workers[] = $w;
     $assigned_emails = array_column($assigned_workers, 'user_email');
     $assignable_workers = array_values(array_filter($assignable_workers, fn($w) => !in_array($w['email'], $assigned_emails)));
+    // Tag BT workers as in-building or not (for tech pre-filter)
+    if (!$order_is_maint) {
+        $order_bldg = $order['building'] ?? '';
+        foreach ($assignable_workers as &$w) {
+            $w['in_building'] = in_array($order_bldg, array_filter(array_map('trim', explode(',', $w['building'] ?? ''))));
+        }
+        unset($w);
+    }
 }
 $db->close();
 
@@ -234,15 +247,25 @@ $current_page = 'wo_detail';
 /* ── ASSIGN PANEL ── */
 .wd-as-search{width:100%;padding:8px 12px;border:1px solid #d0d5dd;border-radius:9px;font-size:13px;font-family:'Barlow',sans-serif;margin-bottom:8px;box-sizing:border-box}
 .wd-as-search:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.10)}
-.wd-as-list{max-height:190px;overflow-y:auto;border:1px solid #e8ecf0;border-radius:9px;background:#fff;margin-bottom:8px}
+.wd-as-list{max-height:260px;overflow-y:auto;border:1px solid #e8ecf0;border-radius:9px;background:#fff;margin-bottom:8px}
 .wd-a-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
 .wd-a-item:last-child{border-bottom:none}
 .wd-a-item:hover{background:#f0f8fb}
 .wd-a-item input[type=checkbox]{accent-color:var(--cyan);width:15px;height:15px;flex-shrink:0}
 .wd-a-name{font-size:13px;font-weight:600;color:#1a1a2e}
 .wd-a-meta{font-size:11px;color:#6b7a8d;margin-left:auto}
-.wd-a-role-grp{padding:5px 12px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;background:#f8f9fa;border-bottom:1px solid #f0f4f8}
+.wd-a-role-grp{padding:5px 12px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;background:#f8f9fa;border-bottom:1px solid #f0f4f8}
+.wd-a-divider{padding:5px 12px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aab0bb;background:#f8f9fa;border-top:2px solid #e0e8ef;border-bottom:1px solid #f0f4f8}
 .wd-a-count{font-size:12px;color:var(--cyan-dark);font-weight:600;min-height:18px;margin-bottom:6px}
+/* ── ACCORDION (maintenance assign) ── */
+.wd-acc-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#f8f9fa;border-bottom:1px solid #e8ecf0;cursor:pointer;user-select:none;transition:background .1s}
+.wd-acc-hdr:hover{background:#edf6f9}
+.wd-acc-hdr-left{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#3d4f5e}
+.wd-acc-chevron{font-size:13px;color:#aab0bb;transition:transform .18s;display:inline-block}
+.wd-acc-chevron.open{transform:rotate(90deg)}
+.wd-acc-hdr-count{font-size:11px;color:#6b7a8d;font-weight:600;background:#e8ecf0;padding:1px 7px;border-radius:20px}
+.wd-acc-body{display:none}
+.wd-acc-body.open{display:block}
 
 /* ── CONFIRM MODAL ── */
 .wdc-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center}
@@ -471,6 +494,7 @@ const IS_MAINT           = <?= $is_maint ? 'true' : 'false' ?>;
 const OLD_PRIORITY       = <?= json_encode($order['priority'] ?? '') ?>;
 const ASSIGNABLE_WORKERS = <?= json_encode($assignable_workers) ?>;
 const SHOW_ASSIGN        = <?= $show_assign ? 'true' : 'false' ?>;
+const ORDER_BUILDING     = <?= json_encode($order['building'] ?? '') ?>;
 
 // ── Confirm modal ──────────────────────────────────────────────
 let _cb = null;
@@ -640,36 +664,120 @@ if (SHOW_ASSIGN && ASSIGNABLE_WORKERS.length) {
         const search  = document.getElementById('wd-as-search');
         const counter = document.getElementById('wd-a-count');
         if (!list) return;
-        const roleLabels = { MW:'Maintenance Worker', BC:'Building Custodian', BM:'Building Maintenance' };
-        const groups     = { MW:[], BC:[], BM:[] };
-        ASSIGNABLE_WORKERS.forEach(w => { if (groups[w.role]) groups[w.role].push(w); });
 
-        function render(filter) {
-            list.innerHTML = '';
-            const f = (filter || '').toLowerCase();
-            ['MW','BC','BM'].forEach(role => {
-                const ws = groups[role].filter(w => !f || (w.first_name + ' ' + w.last_name).toLowerCase().includes(f));
-                if (!ws.length) return;
-                const grp = document.createElement('div');
-                grp.className   = 'wd-a-role-grp';
-                grp.textContent = roleLabels[role];
-                list.appendChild(grp);
-                ws.forEach(w => {
-                    const lbl  = document.createElement('label');
-                    lbl.className = 'wd-a-item';
-                    const meta = (role !== 'MW' && w.building) ? w.building : 'Corp-wide';
-                    lbl.innerHTML = `<input type="checkbox" class="wd-a-cb" data-email="${w.email}" data-name="${w.first_name} ${w.last_name}"><span class="wd-a-name">${w.first_name} ${w.last_name}</span><span class="wd-a-meta">${meta}</span>`;
-                    lbl.querySelector('input').addEventListener('change', () => {
-                        const n = document.querySelectorAll('.wd-a-cb:checked').length;
-                        counter.textContent = n > 0 ? n + ' selected' : '';
-                    });
-                    list.appendChild(lbl);
-                });
-            });
+        function updateCounter() {
+            const n = document.querySelectorAll('.wd-a-cb:checked').length;
+            counter.textContent = n > 0 ? n + ' selected' : '';
         }
 
-        search.addEventListener('input', function() { render(this.value); });
-        render('');
+        function makeItem(w) {
+            const lbl = document.createElement('label');
+            lbl.className = 'wd-a-item';
+            const meta = w.building || 'Corp-wide';
+            lbl.innerHTML = `<input type="checkbox" class="wd-a-cb" data-email="${w.email}" data-name="${w.first_name} ${w.last_name}"><span class="wd-a-name">${w.first_name} ${w.last_name}</span><span class="wd-a-meta">${meta}</span>`;
+            lbl.querySelector('input').addEventListener('change', updateCounter);
+            return lbl;
+        }
+
+        if (IS_MAINT) {
+            // ── Maintenance: collapsible accordions by role ────────
+            const roleLabels = { MW:'Maintenance Workers', BC:'Building Custodians', BM:'Building Maintenance' };
+            const groups     = { MW:[], BC:[], BM:[] };
+            ASSIGNABLE_WORKERS.forEach(w => { if (groups[w.role]) groups[w.role].push(w); });
+
+            const accSections = {};
+            ['MW','BC','BM'].forEach(role => {
+                const workers = groups[role];
+                if (!workers.length) return;
+
+                const section = document.createElement('div');
+
+                const hdr = document.createElement('div');
+                hdr.className = 'wd-acc-hdr';
+                hdr.innerHTML = `<span class="wd-acc-hdr-left"><i class="ti ti-chevron-right wd-acc-chevron"></i>${roleLabels[role]}</span><span class="wd-acc-hdr-count">${workers.length}</span>`;
+
+                const body = document.createElement('div');
+                body.className = 'wd-acc-body';
+                workers.forEach(w => body.appendChild(makeItem(w)));
+
+                hdr.addEventListener('click', () => {
+                    const open = body.classList.toggle('open');
+                    hdr.querySelector('.wd-acc-chevron').classList.toggle('open', open);
+                });
+
+                section.appendChild(hdr);
+                section.appendChild(body);
+                list.appendChild(section);
+                accSections[role] = { hdr, body, workers };
+            });
+
+            search.addEventListener('input', function() {
+                const f = this.value.toLowerCase();
+                ['MW','BC','BM'].forEach(role => {
+                    const sec = accSections[role];
+                    if (!sec) return;
+                    const items = Array.from(sec.body.querySelectorAll('.wd-a-item'));
+                    let matches = 0;
+                    items.forEach(item => {
+                        const show = !f || item.querySelector('.wd-a-name').textContent.toLowerCase().includes(f);
+                        item.style.display = show ? '' : 'none';
+                        if (show) matches++;
+                    });
+                    if (f) {
+                        const open = matches > 0;
+                        sec.body.classList.toggle('open', open);
+                        sec.hdr.querySelector('.wd-acc-chevron').classList.toggle('open', open);
+                        sec.hdr.querySelector('.wd-acc-hdr-count').textContent = matches + (matches === 1 ? ' match' : ' matches');
+                    } else {
+                        // restore count and collapse when search cleared
+                        sec.body.classList.remove('open');
+                        sec.hdr.querySelector('.wd-acc-chevron').classList.remove('open');
+                        sec.hdr.querySelector('.wd-acc-hdr-count').textContent = sec.workers.length;
+                        items.forEach(item => item.style.display = '');
+                    }
+                });
+            });
+
+        } else {
+            // ── Technology: building-matched BT first, others on search ──
+            const inBldg = ASSIGNABLE_WORKERS.filter(w => w.in_building);
+            const others = ASSIGNABLE_WORKERS.filter(w => !w.in_building);
+
+            function renderTech(filter) {
+                list.innerHTML = '';
+                const f = (filter || '').toLowerCase();
+                const matchedLocal  = inBldg.filter(w => !f || (w.first_name + ' ' + w.last_name).toLowerCase().includes(f));
+                const matchedOthers = f      ? others.filter(w => (w.first_name + ' ' + w.last_name).toLowerCase().includes(f)) : [];
+
+                if (matchedLocal.length) {
+                    if (others.length) {
+                        const lbl = document.createElement('div');
+                        lbl.className = 'wd-a-role-grp';
+                        lbl.textContent = ORDER_BUILDING + ' — Building Technicians';
+                        list.appendChild(lbl);
+                    }
+                    matchedLocal.forEach(w => list.appendChild(makeItem(w)));
+                }
+
+                if (matchedOthers.length) {
+                    const div = document.createElement('div');
+                    div.className = 'wd-a-divider';
+                    div.textContent = 'Other Buildings';
+                    list.appendChild(div);
+                    matchedOthers.forEach(w => list.appendChild(makeItem(w)));
+                }
+
+                if (!matchedLocal.length && !matchedOthers.length) {
+                    const msg = document.createElement('div');
+                    msg.style.cssText = 'padding:14px 12px;color:#aab0bb;font-size:12px;text-align:center';
+                    msg.textContent = f ? 'No technicians found.' : 'No technicians assigned to this building. Search by name to find others.';
+                    list.appendChild(msg);
+                }
+            }
+
+            search.addEventListener('input', function() { renderTech(this.value); });
+            renderTech('');
+        }
     })();
 }
 

@@ -110,13 +110,14 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
                 $_alerts[$_row['id']] = $_row;
         }
 
-        // MM / MT queues — ensure both maintenance and technology pending items are always visible
+        // MM / MT queues stuck > 14 days without being assigned
         $_r = $_ndb->query(
             "SELECT id, building, problem_type, created_at, current_handler,
                     DATEDIFF(NOW(), created_at) AS days, NULL AS extra_name, 'pending_queue' AS alert_type
              FROM orders
              WHERE current_handler IN ('MT','MM')
                AND status NOT IN ('Completed','Rejected')
+               AND DATEDIFF(NOW(), created_at) >= 14
              ORDER BY created_at ASC"
         );
         if ($_r) while ($_row = $_r->fetch_assoc()) {
