@@ -80,6 +80,8 @@ $assignable_workers = [];
 if (in_array($user_role, ['MT','MM','A'])) {
     $res = $db->query("SELECT first_name, last_name, email, role, building FROM users WHERE role IN ('MW','BC','BM') AND active=1 ORDER BY FIELD(role,'MW','BC','BM'),last_name,first_name");
     if ($res) while ($w = $res->fetch_assoc()) $assignable_workers[] = $w;
+    $assigned_emails = array_column($assigned_workers, 'user_email');
+    $assignable_workers = array_values(array_filter($assignable_workers, fn($w) => !in_array($w['email'], $assigned_emails)));
 }
 $db->close();
 
@@ -258,6 +260,10 @@ $current_page = 'wo_detail';
 /* ── SUCCESS TOAST ── */
 .wd-toast{position:fixed;top:70px;right:20px;background:#059669;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:600;display:none;align-items:center;gap:8px}
 .wd-toast.show{display:flex}
+
+/* ── PRINT BUTTON ── */
+.wd-print-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1.5px solid #d0d5dd;background:#fff;color:#6b7a8d;font-size:12px;font-weight:600;font-family:'Barlow',sans-serif;text-decoration:none;transition:all .12s;cursor:pointer}
+.wd-print-btn:hover{border-color:var(--cyan);color:var(--cyan);background:#f0f8fb}
 </style>
 </head>
 <body>
@@ -291,8 +297,13 @@ $current_page = 'wo_detail';
             </div>
         </div>
         <div class="wd-head-right">
-            <span class="badge <?= $status_cls[$status] ?? 'badge-pending' ?>"><?= htmlspecialchars($status) ?></span>
-            <span class="pri <?= $pri_cls[$order['priority'] ?? ''] ?? 'pri-low' ?>"><?= htmlspecialchars($order['priority'] ?? '—') ?></span>
+            <div style="display:flex;align-items:center;gap:6px">
+                <span class="badge <?= $status_cls[$status] ?? 'badge-pending' ?>"><?= htmlspecialchars($status) ?></span>
+                <span class="pri <?= $pri_cls[$order['priority'] ?? ''] ?? 'pri-low' ?>"><?= htmlspecialchars($order['priority'] ?? '—') ?></span>
+            </div>
+            <a class="wd-print-btn" href="wo_print.php?wo=<?= urlencode($wo_num) ?>" target="_blank" title="Print work order" style="margin-top:5px">
+                <i class="ti ti-printer"></i> Print
+            </a>
         </div>
     </div>
 
