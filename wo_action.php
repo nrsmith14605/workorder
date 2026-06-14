@@ -97,7 +97,7 @@ $valid_transitions = [
     'worker_complete' => 'In Progress',
 ];
 
-if (!in_array($user_role, ['A', 'MT', 'MM'])) {
+if (!in_array($action, ['note_only', 'priority_only']) && !in_array($user_role, ['A', 'MT', 'MM'])) {
     $valid = $valid_transitions[$action] ?? null;
     $ok = is_array($valid)
         ? in_array($current_status, $valid)

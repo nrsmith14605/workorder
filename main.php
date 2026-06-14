@@ -26,6 +26,13 @@ $initials   = strtoupper(substr($name_parts[0], 0, 1) . (isset($name_parts[1]) ?
 $user_role     = $_SESSION['user_role']     ?? 'U';
 $user_building = $_SESSION['user_building'] ?? null;
 
+// ── Mobile redirect for field roles ──────────────────────────
+$_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
+if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM']) && ($_GET['desktop'] ?? '') !== '1') {
+    header('Location: mobile/dashboard.php');
+    exit;
+}
+
 // ── Handle work order submission ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submit_wo') {
     ini_set('display_errors', 0);

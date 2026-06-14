@@ -1,0 +1,24 @@
+{
+    "name": "WCSC Work Orders",
+    "short_name": "Work Orders",
+    "description": "Warrick County School Corporation Work Order System",
+    "start_url": "./dashboard.php",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0B1F2E",
+    "theme_color": "#0B1F2E",
+    "icons": [
+        {
+            "src": "icon.php?size=192",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icon.php?size=512",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

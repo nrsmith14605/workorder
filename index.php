@@ -140,6 +140,154 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
     opacity: 0;
     pointer-events: none;
   }
+
+  /* ── MOBILE LOGIN ── */
+  .mobile-brand { display: none; }
+  .mobile-topbar { display: none; visibility: hidden; }
+
+  @media (max-width: 768px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+    body { background: #fff; }
+
+    .page {
+      display: block;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    .card {
+      display: block;
+      border-radius: 0;
+      box-shadow: none;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Hide the dark left panel entirely on mobile */
+    .left { display: none; }
+
+    .mobile-topbar {
+      display: block !important;
+      visibility: visible !important;
+      background: #0B1F2E;
+      height: 44px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .right {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+
+    .right-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 32px 32px 24px;
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    /* Mobile logo + branding block */
+    .mobile-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+    .mobile-brand img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      margin-bottom: 16px;
+      filter: brightness(0) saturate(100%) invert(61%) sepia(60%) saturate(400%) hue-rotate(155deg) brightness(95%);
+    }
+    .mobile-brand-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .mobile-brand-sub {
+      font-size: 13px;
+      color: #6b7a8d;
+      margin-top: 4px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* Simplify the existing right-panel text on mobile */
+    .welcome-label { display: none; }
+    .welcome-heading {
+      font-size: 24px !important;
+      text-align: center;
+      margin-bottom: 6px !important;
+    }
+    .welcome-sub {
+      text-align: center;
+      font-size: 14px !important;
+      margin-bottom: 28px !important;
+    }
+
+    /* Full-width Google button on mobile */
+    .google-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 14px 20px !important;
+      font-size: 15px !important;
+      border-radius: 12px !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,.12) !important;
+    }
+
+    .sep { margin: 20px 0 !important; }
+
+    .access-note {
+      font-size: 12px !important;
+      text-align: center;
+    }
+
+    .footer-note {
+      background: #0B1F2E;
+      color: rgba(255,255,255,.35) !important;
+      text-align: center;
+      font-size: 11px !important;
+      height: 44px;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px !important;
+      margin: 0 !important;
+      flex-shrink: 0;
+      width: 100vw !important;
+      position: relative;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Landscape phone compaction — everything already shows, just shrink spacing */
+  @media (hover: none) and (pointer: coarse) and (max-width: 1024px) and (orientation: landscape) {
+    .mobile-topbar { height: 8px !important; }
+    .footer-note   { height: 32px !important; }
+    .mobile-brand  { margin-bottom: 16px; }
+    .mobile-brand img { width: 44px !important; height: 44px !important; margin-bottom: 8px !important; }
+    .mobile-brand-name { font-size: 17px !important; }
+    .right-inner { padding: 10px 32px 6px !important; }
+    .welcome-heading { font-size: 20px !important; margin-bottom: 4px !important; }
+    .welcome-sub { font-size: 12px !important; margin-bottom: 14px !important; }
+    .google-btn { padding: 11px 20px !important; }
+    .sep { margin: 10px 0 !important; }
+    .access-note { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -168,7 +316,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
 
     <!-- RIGHT PANEL -->
     <div class="right">
+      <!-- Mobile only: navy top stripe -->
+      <div class="mobile-topbar"></div>
+
       <div class="right-inner">
+
+        <!-- Mobile only: logo + branding (hidden on desktop) -->
+        <div class="mobile-brand">
+          <img src="images/logo.png" alt="Warrick County School Corporation">
+          <div class="mobile-brand-name">Warrick County<br>School Corporation</div>
+          <div class="mobile-brand-sub">Work Order System</div>
+        </div>
 
         <div class="welcome-label">Secure Access</div>
         <h1 class="welcome-heading">Sign In</h1>
