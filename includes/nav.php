@@ -16,6 +16,7 @@ if (!function_exists('human_time_diff')) {
 $_nav_notif_count = 0;
 $_nav_rows = [];
 $_nav_role = $user_role ?? '';
+$_rpt_staff_json = '[]';
 
 if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
     $_ndb = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -131,6 +132,28 @@ if (in_array($_nav_role, ['BT','BP','MT','MM','A','MW','BC','BM'])) {
     }
 
     $_nav_notif_count = count($_nav_rows);
+
+    // Staff list for Staff Member Report accordion
+    if (in_array($_nav_role, ['A', 'MT', 'MM'])) {
+        $_rpt_roles = $_nav_role === 'MM' ? ['MW','BC','BM']
+                    : ($_nav_role === 'MT' ? ['BT']
+                    : ['MW','BT','BC','BM']);
+        $_rpt_ph = implode(',', array_fill(0, count($_rpt_roles), '?'));
+        $_rpt_st = $_ndb->prepare(
+            "SELECT first_name, last_name, email, role FROM users
+             WHERE active=1 AND role IN ({$_rpt_ph})
+             ORDER BY FIELD(role,'MW','BT','BC','BM'), last_name, first_name"
+        );
+        $_rpt_st->bind_param(str_repeat('s', count($_rpt_roles)), ...$_rpt_roles);
+        $_rpt_st->execute();
+        $_rpt_res = $_rpt_st->get_result();
+        $_rpt_staff = [];
+        while ($_rpt_row = $_rpt_res->fetch_assoc()) $_rpt_staff[] = $_rpt_row;
+        $_rpt_st->close();
+        $_rpt_staff_json = json_encode($_rpt_staff, JSON_HEX_TAG | JSON_HEX_APOS);
+        unset($_rpt_roles, $_rpt_ph, $_rpt_st, $_rpt_res, $_rpt_staff, $_rpt_row);
+    }
+
     $_ndb->close();
     unset($_ndb, $_nav_role, $_bt, $_ph, $_st, $_r, $_row);
 }
@@ -374,6 +397,23 @@ select.rpt-input{
 @keyframes rpt-spin{to{transform:rotate(360deg)}}
 .rpt-spinning{animation:rpt-spin .8s linear infinite;display:inline-block}
 
+/* ── Staff accordion ── */
+.rpt-acc-wrap{border:1px solid #e8ecf0;border-radius:8px;overflow:hidden;margin-bottom:4px}
+.rpt-acc-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f8f9fa;cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#1a1a2e;border:none;width:100%;text-align:left;font-family:'Barlow',sans-serif}
+.rpt-acc-hdr:hover{background:#f0f4f8}
+.rpt-acc-hdr-left{display:flex;align-items:center;gap:6px}
+.rpt-acc-chevron{font-size:9px;color:#aab0bb;transition:transform .15s;display:inline-block}
+.rpt-acc-chevron.open{transform:rotate(90deg)}
+.rpt-acc-count{font-size:10px;font-weight:600;color:#aab0bb;background:#e8ecf0;padding:1px 7px;border-radius:20px}
+.rpt-acc-body{display:none;border-top:1px solid #e8ecf0}
+.rpt-acc-body.open{display:block}
+.rpt-worker-row{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:#1a1a2e;border-bottom:1px solid #f8f9fa;transition:background .1s;width:100%;background:transparent;border:none;text-align:left;font-family:'Barlow',sans-serif}
+.rpt-worker-row:last-child{border-bottom:none}
+.rpt-worker-row:hover{background:#f0f8fb}
+.rpt-worker-row input[type=checkbox]{accent-color:var(--cyan);cursor:pointer;flex-shrink:0;width:13px;height:13px}
+.rpt-sel-chip{display:inline-flex;align-items:center;gap:4px;background:var(--cyan-light);color:var(--cyan-dark);border:1px solid var(--cyan-muted);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;margin:2px;cursor:pointer;font-family:'Barlow',sans-serif}
+.rpt-sel-chip:hover{background:var(--cyan);color:#fff}
+
 /* Reports nav button */
 .reports-nav-btn{
     display:flex;align-items:center;gap:6px;
@@ -525,23 +565,15 @@ select.rpt-input{
                 </div>
             </div>
 
-            <div class="rpt-card" data-report="completed_staff">
-                <div class="rpt-card-icon"><i class="ti ti-user-check"></i></div>
-                <div class="rpt-card-text">
-                    <div class="rpt-card-name">Completed by Staff</div>
-                    <div class="rpt-card-hint">One person's closed orders</div>
-                </div>
-            </div>
-
             <div class="rpt-card" data-report="current_staff">
                 <div class="rpt-card-icon"><i class="ti ti-user-bolt"></i></div>
                 <div class="rpt-card-text">
-                    <div class="rpt-card-name">Current by Staff</div>
-                    <div class="rpt-card-hint">One person's active work</div>
+                    <div class="rpt-card-name">Staff Member Report</div>
+                    <div class="rpt-card-hint">Open work, completion history &amp; performance stats</div>
                 </div>
             </div>
 
-            <div class="rpt-card rpt-card-full" data-report="workload">
+            <div class="rpt-card" data-report="workload">
                 <div class="rpt-card-icon"><i class="ti ti-chart-bar"></i></div>
                 <div class="rpt-card-text">
                     <div class="rpt-card-name">Workload Distribution</div>
@@ -564,16 +596,6 @@ select.rpt-input{
                 </div>
             </div>
 
-            <!-- Period — completed by staff -->
-            <div id="rpt-opt-period-staff" style="display:none">
-                <div class="rpt-opt-label">Period</div>
-                <div class="rpt-pills" id="period-staff-pills">
-                    <button class="rpt-pill active" data-val="30">Last 30 days</button>
-                    <button class="rpt-pill" data-val="90">Last 90 days</button>
-                    <button class="rpt-pill" data-val="365">Last year</button>
-                </div>
-            </div>
-
             <!-- Period — workload distribution -->
             <div id="rpt-opt-period-workload" style="display:none">
                 <div class="rpt-opt-label">Period</div>
@@ -586,12 +608,15 @@ select.rpt-input{
                 </div>
             </div>
 
-            <!-- Person search -->
-            <div id="rpt-opt-person" style="display:none">
-                <div class="rpt-opt-label">Staff Member</div>
-                <input type="text" id="rpt-person-search" class="rpt-input" placeholder="Type a name…" autocomplete="off">
-                <div class="rpt-person-results" id="rpt-person-results"></div>
-                <input type="hidden" id="rpt-person-email" value="">
+            <!-- Staff accordion picker -->
+            <div id="rpt-opt-staff-accordion" style="display:none">
+                <div class="rpt-opt-label">Select Staff Member(s)</div>
+                <input type="text" id="rpt-acc-search" class="rpt-input" placeholder="Search by name…" autocomplete="off">
+                <div id="rpt-acc-list" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
+                <div id="rpt-selected-wrap" style="display:none;margin-top:8px">
+                    <div class="rpt-opt-label" style="margin-bottom:4px">Selected</div>
+                    <div id="rpt-selected-chips"></div>
+                </div>
             </div>
 
             <!-- Building picker -->
@@ -703,14 +728,13 @@ select.rpt-input{
 
     // ── Card selection ────────────────────────────────────────
     const rptCards = document.querySelectorAll('.rpt-card');
-    const OPT_IDS  = ['rpt-opt-aging','rpt-opt-period-staff','rpt-opt-period-workload','rpt-opt-person','rpt-opt-building'];
+    const OPT_IDS  = ['rpt-opt-aging','rpt-opt-period-workload','rpt-opt-staff-accordion','rpt-opt-building'];
     const optMap   = {
         active_maint:   [],
         active_tech:    [],
         aging:          ['rpt-opt-aging'],
         by_building:    ['rpt-opt-building'],
-        completed_staff:['rpt-opt-period-staff','rpt-opt-person'],
-        current_staff:  ['rpt-opt-person'],
+        current_staff:  ['rpt-opt-staff-accordion'],
         workload:       ['rpt-opt-period-workload'],
     };
 
@@ -725,17 +749,106 @@ select.rpt-input{
         }
     }
 
+    // ── Staff accordion state & functions ────────────────────
+    const RPT_STAFF = <?= $_rpt_staff_json ?>;
+    const RPT_ROLE_LABELS = {MW:'Maintenance Workers',BT:'Building Technicians',BC:'Building Custodians',BM:'Building Maintenance'};
+    const RPT_ROLE_ORDER = <?= json_encode($user_role === 'MM' ? ['MW','BC','BM'] : ($user_role === 'MT' ? ['BT'] : ['MW','BT','BC','BM'])) ?>;
+    let rptSelected = {};
+
+    function buildRptAccordion(filter) {
+        var list = document.getElementById('rpt-acc-list');
+        if (!list) return;
+        var q = (filter || '').toLowerCase();
+        var byRole = {};
+        RPT_STAFF.forEach(function(w) {
+            var name = (w.first_name + ' ' + w.last_name).toLowerCase();
+            if (q && name.indexOf(q) === -1) return;
+            if (!byRole[w.role]) byRole[w.role] = [];
+            byRole[w.role].push(w);
+        });
+        list.innerHTML = '';
+        RPT_ROLE_ORDER.forEach(function(role) {
+            var group = byRole[role];
+            if (!group || !group.length) return;
+            var isOpen = !!q || RPT_ROLE_ORDER.length === 1;
+            var div = document.createElement('div');
+            div.className = 'rpt-acc-wrap';
+            var rows = group.map(function(w) {
+                var esc = function(s){ return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+                var checked = rptSelected[w.email] ? 'checked' : '';
+                return '<button type="button" class="rpt-worker-row" onclick="rptToggleWorker(this)"'
+                    + ' data-email="' + esc(w.email) + '" data-name="' + esc(w.first_name + ' ' + w.last_name) + '">'
+                    + '<input type="checkbox" ' + checked + ' onclick="event.stopPropagation()" style="pointer-events:none" tabindex="-1">'
+                    + '<span>' + w.first_name + ' ' + w.last_name + '</span>'
+                    + '</button>';
+            }).join('');
+            div.innerHTML = '<button type="button" class="rpt-acc-hdr"'
+                + ' onclick="var b=this.nextElementSibling;b.classList.toggle(\'open\');this.querySelector(\'.rpt-acc-chevron\').classList.toggle(\'open\')">'
+                + '<span class="rpt-acc-hdr-left"><span class="rpt-acc-chevron' + (isOpen ? ' open' : '') + '">&#9654;</span>'
+                + (RPT_ROLE_LABELS[role] || role) + '</span>'
+                + '<span class="rpt-acc-count">' + group.length + '</span></button>'
+                + '<div class="rpt-acc-body' + (isOpen ? ' open' : '') + '">' + rows + '</div>';
+            list.appendChild(div);
+        });
+    }
+
+    window.rptToggleWorker = function(btn) {
+        var email = btn.dataset.email;
+        var name  = btn.dataset.name;
+        var cb    = btn.querySelector('input[type=checkbox]');
+        if (rptSelected[email]) {
+            delete rptSelected[email];
+            cb.checked = false;
+        } else {
+            rptSelected[email] = name;
+            cb.checked = true;
+        }
+        updateRptSelectedUI();
+        rptGenerate.disabled = selectedReport === 'current_staff' && Object.keys(rptSelected).length === 0;
+    };
+
+    window.rptRemoveWorker = function(email) {
+        delete rptSelected[email];
+        buildRptAccordion(document.getElementById('rpt-acc-search').value);
+        updateRptSelectedUI();
+        rptGenerate.disabled = selectedReport === 'current_staff' && Object.keys(rptSelected).length === 0;
+    };
+
+    function updateRptSelectedUI() {
+        var wrap  = document.getElementById('rpt-selected-wrap');
+        var chips = document.getElementById('rpt-selected-chips');
+        if (!chips) return;
+        var emails = Object.keys(rptSelected);
+        if (!emails.length) { wrap.style.display = 'none'; chips.innerHTML = ''; return; }
+        wrap.style.display = '';
+        chips.innerHTML = emails.map(function(e) {
+            var esc = e.replace(/'/g, "\\'");
+            return '<span class="rpt-sel-chip" onclick="rptRemoveWorker(\'' + esc + '\')">'
+                + rptSelected[e] + ' &times;</span>';
+        }).join('');
+    }
+
+    var _rptAccSearch = document.getElementById('rpt-acc-search');
+    if (_rptAccSearch) {
+        _rptAccSearch.addEventListener('input', function() { buildRptAccordion(this.value); });
+    }
+
     rptCards.forEach(function(card) {
         card.addEventListener('click', function() {
             rptCards.forEach(function(c){ c.classList.remove('selected'); });
             this.classList.add('selected');
             selectedReport = this.dataset.report;
-            // Clear person on switch
-            document.getElementById('rpt-person-search').value = '';
-            document.getElementById('rpt-person-email').value  = '';
-            document.getElementById('rpt-person-results').style.display = 'none';
             showOptions(selectedReport);
-            rptGenerate.disabled = false;
+            if (selectedReport === 'current_staff') {
+                rptSelected = {};
+                updateRptSelectedUI();
+                buildRptAccordion('');
+                var ras = document.getElementById('rpt-acc-search');
+                if (ras) ras.value = '';
+                rptGenerate.disabled = true;
+            } else {
+                rptGenerate.disabled = false;
+            }
         });
     });
 
@@ -749,51 +862,6 @@ select.rpt-input{
         });
     });
 
-    // ── Person search ─────────────────────────────────────────
-    const personSearch  = document.getElementById('rpt-person-search');
-    const personResults = document.getElementById('rpt-person-results');
-    const personEmail   = document.getElementById('rpt-person-email');
-    // Roles this manager is allowed to see
-    const rptAllowedRoles = <?= json_encode(
-        $user_role === 'MM' ? ['MW','BM','BC'] :
-        ($user_role === 'MT' ? ['BT'] : ['MW','BM','BC','BT'])
-    ) ?>;
-
-    function searchPerson() {
-        const q = personSearch.value.trim();
-        if (q.length < 2) { personResults.style.display = 'none'; return; }
-        fetch('report_emp_search.php?' + new URLSearchParams({ q: q }).toString())
-            .then(function(r){ return r.json(); })
-            .then(function(data) {
-                data = data.filter(function(e){ return rptAllowedRoles.indexOf(e.role) !== -1; });
-                personResults.innerHTML = '';
-                if (!data.length) {
-                    personResults.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#aab0bb">No matches</div>';
-                } else {
-                    data.forEach(function(emp) {
-                        const item = document.createElement('div');
-                        item.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f4f8;transition:background .1s';
-                        item.innerHTML = '<strong>' + emp.name + '</strong> <span style="color:#aab0bb;font-size:11px">· ' + emp.role_label + '</span>';
-                        item.addEventListener('mouseenter', function(){ this.style.background = '#f0f8fb'; });
-                        item.addEventListener('mouseleave', function(){ this.style.background = ''; });
-                        item.addEventListener('click', function() {
-                            personSearch.value = emp.name;
-                            personEmail.value  = emp.email;
-                            personResults.style.display = 'none';
-                        });
-                        personResults.appendChild(item);
-                    });
-                }
-                personResults.style.display = 'block';
-            })
-            .catch(function(){ personResults.style.display = 'none'; });
-    }
-
-    personSearch.addEventListener('input', searchPerson);
-    document.addEventListener('click', function(e) {
-        if (!personResults.contains(e.target) && e.target !== personSearch)
-            personResults.style.display = 'none';
-    });
 
     // ── Reset ─────────────────────────────────────────────────
     rptReset.addEventListener('click', function() {
@@ -801,17 +869,23 @@ select.rpt-input{
         selectedReport = '';
         rptOptions.style.display = 'none';
         OPT_IDS.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
-        personSearch.value = '';
-        personEmail.value  = '';
-        personResults.style.display = 'none';
         document.getElementById('rpt-building').value = '';
         // Restore pill defaults
-        var defaults = { 'aging-pills':'14', 'period-staff-pills':'30', 'period-workload-pills':'30' };
+        var defaults = { 'aging-pills':'14', 'period-workload-pills':'30' };
         Object.keys(defaults).forEach(function(groupId) {
             var group = document.getElementById(groupId);
+            if (!group) return;
             group.querySelectorAll('.rpt-pill').forEach(function(p){ p.classList.remove('active'); });
-            group.querySelector('[data-val="' + defaults[groupId] + '"]').classList.add('active');
+            var def = group.querySelector('[data-val="' + defaults[groupId] + '"]');
+            if (def) def.classList.add('active');
         });
+        // Reset staff accordion
+        rptSelected = {};
+        updateRptSelectedUI();
+        buildRptAccordion('');
+        var ras = document.getElementById('rpt-acc-search');
+        if (ras) ras.value = '';
+        document.getElementById('rpt-links-panel').style.display = 'none';
         rptGenerate.disabled = true;
     });
 
@@ -819,13 +893,6 @@ select.rpt-input{
     rptGenerate.addEventListener('click', function() {
         if (!selectedReport) return;
 
-        // Validate person-required reports
-        if (['completed_staff','current_staff'].indexOf(selectedReport) !== -1 && !personEmail.value) {
-            personSearch.focus();
-            personSearch.style.borderColor = '#dc2626';
-            setTimeout(function(){ personSearch.style.borderColor = ''; }, 1500);
-            return;
-        }
         // Validate building
         if (selectedReport === 'by_building' && !document.getElementById('rpt-building').value) {
             document.getElementById('rpt-building').style.borderColor = '#dc2626';
@@ -840,15 +907,10 @@ select.rpt-input{
             var p = document.querySelector('#aging-pills .rpt-pill.active');
             params.set('aging_days', p ? p.dataset.val : '14');
         }
-        if (selectedReport === 'completed_staff') {
-            var p = document.querySelector('#period-staff-pills .rpt-pill.active');
-            params.set('period_days', p ? p.dataset.val : '30');
-            params.set('emp_email', personEmail.value);
-            params.set('emp_name',  personSearch.value);
-        }
         if (selectedReport === 'current_staff') {
-            params.set('emp_email', personEmail.value);
-            params.set('emp_name',  personSearch.value);
+            var emails = Object.keys(rptSelected);
+            if (!emails.length) return;
+            params.set('emp_email', emails.join(','));
         }
         if (selectedReport === 'by_building') {
             params.set('building', document.getElementById('rpt-building').value);

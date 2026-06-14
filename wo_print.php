@@ -93,10 +93,9 @@ function wo_print_fmt_date(?string $d): string {
 }
 
 $css = '
-@page       { margin: 1in 0 0 0; }
-@page :first { margin: 0; }
+@page { margin: 1in 0 0 0; }
 body { font-family: Helvetica, Arial, sans-serif; margin: 0; padding: 0; font-size: 9pt; color: #222; }
-.header { background: #0B1F2E; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; }
+.header { background: #0B1F2E; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; margin-top: -1in; }
 .header-inner { display: table-cell; vertical-align: middle; }
 .header-logo { float: left; padding-top: 6px; }
 .header-logo img { height: 0.75in; width: auto; }
