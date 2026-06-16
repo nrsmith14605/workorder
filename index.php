@@ -100,6 +100,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
     echo json_encode(['success' => true, 'redirect' => $redirect_uri]);
     exit;
 }
+
+// TEMP DEV LOGIN — remove before production
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_user'])) {
+    $dev_user = $_POST['dev_user'] ?? '';
+    $dev_pass = $_POST['dev_pass'] ?? '';
+
+    if ($dev_user !== 'admin' || $dev_pass !== 'password') {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Invalid dev credentials.']);
+        exit;
+    }
+
+    $email = 'nrsmith14605@gmail.com';
+
+    $_SESSION['google_user'] = [
+        'id'          => 'dev-test-user',
+        'email'       => $email,
+        'name'        => 'Test Admin',
+        'given_name'  => 'Test',
+        'family_name' => 'Admin',
+        'picture'     => '',
+        'verified'    => true
+    ];
+
+    $_SESSION['user_role']     = 'U';
+    $_SESSION['user_building'] = null;
+
+    try {
+        mysqli_report(MYSQLI_REPORT_OFF);
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        if (!$conn->connect_error) {
+            $conn->set_charset('utf8mb4');
+            $stmt = $conn->prepare("SELECT role, building FROM users WHERE email = ? AND active = 1 LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param('s', $email);
+                $stmt->execute();
+                $stmt->bind_result($db_role, $db_building);
+                if ($stmt->fetch()) {
+                    $_SESSION['user_role']     = $db_role;
+                    $_SESSION['user_building'] = $db_building;
+                }
+                $stmt->close();
+            }
+            $conn->close();
+        }
+    } catch (Exception $e) {}
+
+    echo json_encode(['success' => true, 'redirect' => GOOGLE_REDIRECT_URI]);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -353,11 +403,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
         </div>
 
         <div class="access-note">
-          <strong>Access is restricted</strong> to authorized Warrick County personnel. Sign in with your official <strong>@warrick.k12.in.us</strong> Google account.
+          <strong>Access is restricted</strong> to authorized WCSC personnel using your official <strong>@warrick.k12.in.us</strong> account.
         </div>
 
         <!-- Status / error message shown below the button -->
         <div id="message" role="alert" aria-live="polite"></div>
+
+        <!-- DEV ONLY: temp login — remove before production -->
+        <div id="dev-login" style="margin-top:24px;padding:14px 16px;border:2px dashed #e74c3c;border-radius:8px;background:#fff5f5;">
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input id="dev-user" type="text" placeholder="Username" autocomplete="off" style="width:calc(50% - 4px);padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
+            <input id="dev-pass" type="password" placeholder="Password" style="width:calc(50% - 4px);padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
+          </div>
+          <button id="dev-btn" type="button" style="width:100%;padding:10px;background:#e74c3c;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Temporary Dev Login</button>
+        </div>
 
       </div>
       <div class="footer-note">&copy; 2025 Warrick County School Corporation &middot; All rights reserved</div>
@@ -436,6 +495,34 @@ function handleCredentialResponse(response) {
     msg.textContent   = 'Network error. Please check your connection and try again.';
   });
 }
+
+// DEV ONLY: temp login handler — remove before production
+document.getElementById('dev-btn').addEventListener('click', function () {
+  var msg  = document.getElementById('message');
+  var user = document.getElementById('dev-user').value;
+  var pass = document.getElementById('dev-pass').value;
+
+  fetch('', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    'dev_user=' + encodeURIComponent(user) + '&dev_pass=' + encodeURIComponent(pass)
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      msg.className   = 'visible success';
+      msg.textContent = 'Dev login successful! Redirecting...';
+      window.location.href = data.redirect;
+    } else {
+      msg.className   = 'visible';
+      msg.textContent = data.message || 'Dev login failed.';
+    }
+  })
+  .catch(function () {
+    msg.className   = 'visible';
+    msg.textContent = 'Network error. Please try again.';
+  });
+});
 </script>
 
 </body>

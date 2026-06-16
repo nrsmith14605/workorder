@@ -28,7 +28,7 @@ $user_building = $_SESSION['user_building'] ?? null;
 
 // ── Mobile redirect for field roles ──────────────────────────
 $_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
-if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM']) && ($_GET['desktop'] ?? '') !== '1') {
+if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
     header('Location: mobile/dashboard.php');
     exit;
 }

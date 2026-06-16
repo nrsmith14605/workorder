@@ -13,7 +13,7 @@ $user_given    = $user['given_name'] ?? '';
 $user_pic      = $user['picture'] ?? '';
 $user_role     = $_SESSION['user_role'] ?? 'U';
 
-if (!in_array($user_role, ['MW','BC','BM','MM'])) {
+if (!in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A'])) {
     header('Location: ../main.php');
     exit;
 }
@@ -23,44 +23,102 @@ $role_labels = [
     'BC' => 'Building Custodian',
     'BM' => 'Building Maintenance',
     'MM' => 'Maintenance Manager',
+    'BT' => 'Building Technician',
+    'MT' => 'Technology Manager',
+    'A'  => 'Administrator',
+    'U'  => 'User',
 ];
-$role_label = $role_labels[$user_role] ?? 'Worker';
+$role_label = $role_labels[$user_role] ?? 'User';
 
 require_once __DIR__ . '/../../../wo_config.php';
 $db = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 $db->set_charset('utf8mb4');
 
-$orders = [];
+$orders        = [];
+$completed     = [];
+$user_building = $_SESSION['user_building'] ?? null;
 
 if ($user_role === 'MM') {
-    // MM sees all maintenance In Progress orders
     $res = $db->query(
-        "SELECT o.*, NULL AS assigned_date FROM orders o
-         WHERE o.type = 'Maintenance' AND o.status = 'In Progress'
-         ORDER BY
-           FIELD(o.priority,'Urgent','High','Mid','Low'),
-           o.created_at ASC"
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE type = 'Maintenance' AND status IN ('Approved','In Progress')
+         ORDER BY FIELD(priority,'Urgent','High','Mid','Low'), created_at ASC"
     );
     if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
 
-    // Also fetch completed for toggle
-    $completed = [];
     $res2 = $db->query(
-        "SELECT o.*, NULL AS assigned_date FROM orders o
-         WHERE o.type = 'Maintenance' AND o.status = 'Completed'
-         ORDER BY o.created_at DESC LIMIT 50"
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE type = 'Maintenance' AND status IN ('Completed','Rejected')
+         ORDER BY created_at DESC LIMIT 50"
     );
     if ($res2) while ($row = $res2->fetch_assoc()) $completed[] = $row;
-} else {
-    // MW/BC/BM see only their assigned orders
+
+} elseif ($user_role === 'MT') {
+    $res = $db->query(
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE type = 'Technology' AND status IN ('Approved','In Progress')
+         ORDER BY FIELD(priority,'Urgent','High','Mid','Low'), created_at ASC"
+    );
+    if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
+
+    $res2 = $db->query(
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE type = 'Technology' AND status IN ('Completed','Rejected')
+         ORDER BY created_at DESC LIMIT 50"
+    );
+    if ($res2) while ($row = $res2->fetch_assoc()) $completed[] = $row;
+
+} elseif ($user_role === 'A') {
+    $res = $db->query(
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE status IN ('Pending Approval','Approved','In Progress')
+         ORDER BY FIELD(priority,'Urgent','High','Mid','Low'), created_at ASC"
+    );
+    if ($res) while ($row = $res->fetch_assoc()) $orders[] = $row;
+
+    $res2 = $db->query(
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE status IN ('Completed','Rejected')
+         ORDER BY created_at DESC LIMIT 50"
+    );
+    if ($res2) while ($row = $res2->fetch_assoc()) $completed[] = $row;
+
+} elseif ($user_role === 'BT') {
+    $bt_buildings = array_filter(array_map('trim', explode(',', $user_building ?? '')));
+    if ($bt_buildings) {
+        $ph    = implode(',', array_fill(0, count($bt_buildings), '?'));
+        $types = str_repeat('s', count($bt_buildings));
+
+        $stmt = $db->prepare(
+            "SELECT *, NULL AS assigned_date FROM orders
+             WHERE building IN ($ph) AND type = 'Technology'
+               AND status IN ('Pending Approval','In Progress')
+             ORDER BY FIELD(priority,'Urgent','High','Mid','Low'), created_at ASC"
+        );
+        $stmt->bind_param($types, ...$bt_buildings);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) $orders[] = $row;
+        $stmt->close();
+
+        $stmt2 = $db->prepare(
+            "SELECT *, NULL AS assigned_date FROM orders
+             WHERE building IN ($ph) AND type = 'Technology'
+               AND status IN ('Completed','Rejected')
+             ORDER BY created_at DESC LIMIT 50"
+        );
+        $stmt2->bind_param($types, ...$bt_buildings);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        while ($row = $res2->fetch_assoc()) $completed[] = $row;
+        $stmt2->close();
+    }
+
+} elseif ($user_role === 'U') {
     $stmt = $db->prepare(
-        "SELECT o.*, oa.assigned_at AS assigned_date
-         FROM orders o
-         INNER JOIN order_assignments oa ON o.id = oa.order_id
-         WHERE oa.user_email = ? AND o.status = 'In Progress'
-         ORDER BY
-           FIELD(o.priority,'Urgent','High','Mid','Low'),
-           o.created_at ASC"
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE submitted_by = ? AND status NOT IN ('Completed','Rejected')
+         ORDER BY created_at DESC"
     );
     $stmt->bind_param('s', $user_email);
     $stmt->execute();
@@ -68,7 +126,32 @@ if ($user_role === 'MM') {
     while ($row = $res->fetch_assoc()) $orders[] = $row;
     $stmt->close();
 
-    $completed = [];
+    $stmt2 = $db->prepare(
+        "SELECT *, NULL AS assigned_date FROM orders
+         WHERE submitted_by = ? AND status IN ('Completed','Rejected')
+         ORDER BY created_at DESC LIMIT 50"
+    );
+    $stmt2->bind_param('s', $user_email);
+    $stmt2->execute();
+    $res2 = $stmt2->get_result();
+    while ($row = $res2->fetch_assoc()) $completed[] = $row;
+    $stmt2->close();
+
+} else {
+    // MW / BC / BM — assigned orders only
+    $stmt = $db->prepare(
+        "SELECT o.*, oa.assigned_at AS assigned_date
+         FROM orders o
+         INNER JOIN order_assignments oa ON o.id = oa.order_id
+         WHERE oa.user_email = ? AND o.status = 'In Progress'
+         ORDER BY FIELD(o.priority,'Urgent','High','Mid','Low'), o.created_at ASC"
+    );
+    $stmt->bind_param('s', $user_email);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) $orders[] = $row;
+    $stmt->close();
+
     $stmt2 = $db->prepare(
         "SELECT o.*, oa.assigned_at AS assigned_date
          FROM orders o
@@ -118,11 +201,18 @@ function render_card(array $o, array $pri_colors, bool $is_completed = false): v
             <div class="card-problem"><?= $problem ?></div>
             <div class="card-desc"><?= $desc ?></div>
             <div class="card-footer">
-                <?php if ($is_completed): ?>
-                <span class="card-status completed">Completed</span>
-                <?php else: ?>
-                <span class="card-status inprogress">In Progress</span>
-                <?php endif; ?>
+                <?php
+                $s_map = [
+                    'Pending Approval' => ['class'=>'pending',    'label'=>'Pending'],
+                    'Approved'         => ['class'=>'approved',   'label'=>'Approved'],
+                    'In Progress'      => ['class'=>'inprogress', 'label'=>'In Progress'],
+                    'Completed'        => ['class'=>'completed',  'label'=>'Completed'],
+                    'Rejected'         => ['class'=>'rejected',   'label'=>'Rejected'],
+                ];
+                $s_key = $o['status'] ?? 'In Progress';
+                $sd    = $s_map[$s_key] ?? ['class'=>'inprogress','label'=>$s_key];
+                ?>
+                <span class="card-status <?= $sd['class'] ?>"><?= $sd['label'] ?></span>
                 <span class="card-date"><?= $date_fmt ?></span>
             </div>
         </div>
@@ -315,6 +405,9 @@ body{
 }
 .card-status.inprogress{background:#dbeafe;color:#1e40af}
 .card-status.completed{background:#f0fdf4;color:#166534}
+.card-status.pending{background:#fef3c7;color:#92400e}
+.card-status.approved{background:#d1fae5;color:#065f46}
+.card-status.rejected{background:#fee2e2;color:#991b1b}
 .card-date{font-size:11px;color:#aab0bb}
 
 /* ── EMPTY STATE ── */
@@ -418,7 +511,14 @@ body{
 
     <!-- Active orders -->
     <div class="section-label">
-        <?= $user_role === 'MM' ? 'All Active Maintenance Orders' : 'My Assigned Orders' ?>
+        <?php
+        if ($user_role === 'MM')     echo 'All Active Maintenance Orders';
+        elseif ($user_role === 'MT') echo 'All Active Tech Orders';
+        elseif ($user_role === 'A')  echo 'All Active Work Orders';
+        elseif ($user_role === 'BT') echo "My Building's Tech Orders";
+        elseif ($user_role === 'U')  echo 'My Submitted Orders';
+        else                          echo 'My Assigned Orders';
+        ?>
     </div>
 
     <?php if (empty($orders)): ?>
@@ -434,11 +534,11 @@ body{
     <?php if (!empty($completed)): ?>
     <button class="toggle-completed" id="toggle-completed-btn" aria-expanded="false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="toggle-icon"><polyline points="6 9 12 15 18 9"/></svg>
-        Show <?= count($completed) ?> Completed Order<?= count($completed) !== 1 ? 's' : '' ?>
+        Show <?= count($completed) ?> <?= $user_role === 'U' ? 'Closed' : 'Completed' ?> Order<?= count($completed) !== 1 ? 's' : '' ?>
     </button>
 
     <div class="completed-section" id="completed-section">
-        <div class="section-label">Completed</div>
+        <div class="section-label"><?= $user_role === 'U' ? 'Closed' : 'Completed' ?></div>
         <?php foreach ($completed as $o): render_card($o, $pri_colors, true); endforeach; ?>
     </div>
     <?php endif; ?>

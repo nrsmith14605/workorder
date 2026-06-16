@@ -13,7 +13,7 @@ $user_given = $user['given_name'] ?? '';
 $user_pic   = $user['picture'] ?? '';
 $user_role  = $_SESSION['user_role'] ?? 'U';
 
-if (!in_array($user_role, ['MW','BC','BM','MM'])) {
+if (!in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A'])) {
     header('Location: ../main.php');
     exit;
 }
@@ -47,6 +47,21 @@ if ($user_role === 'MM') {
     if ($order['type'] !== 'Maintenance') {
         $db->close(); header('Location: dashboard.php'); exit;
     }
+} elseif ($user_role === 'MT') {
+    if ($order['type'] !== 'Technology') {
+        $db->close(); header('Location: dashboard.php'); exit;
+    }
+} elseif ($user_role === 'A') {
+    // Admin can access any order — no restriction
+} elseif ($user_role === 'BT') {
+    $bt_buildings = array_filter(array_map('trim', explode(',', $_SESSION['user_building'] ?? '')));
+    if ($order['type'] !== 'Technology' || !in_array($order['building'], $bt_buildings)) {
+        $db->close(); header('Location: dashboard.php'); exit;
+    }
+} elseif ($user_role === 'U') {
+    if ($order['submitted_by'] !== $user_email) {
+        $db->close(); header('Location: dashboard.php'); exit;
+    }
 } else {
     // MW/BC/BM — must be assigned
     $chk = $db->prepare("SELECT 1 FROM order_assignments WHERE order_id=? AND user_email=?");
@@ -57,6 +72,37 @@ if ($user_role === 'MM') {
         header('Location: dashboard.php'); exit;
     }
     $chk->close();
+}
+
+// Fetch already-assigned workers (shown in card and filtered from picker)
+$assigned_workers = [];
+$aw = $db->prepare("SELECT user_name, user_email FROM order_assignments WHERE order_id = ?");
+$aw->bind_param('i', $order_id);
+$aw->execute();
+$ar = $aw->get_result();
+while ($row = $ar->fetch_assoc()) $assigned_workers[] = $row;
+$aw->close();
+
+// Fetch worker pool for manager roles, excluding already-assigned
+$worker_pool = [];
+$is_mgr = in_array($user_role, ['MM','MT','A']);
+if ($is_mgr) {
+    $assigned_emails = array_column($assigned_workers, 'user_email');
+    $is_tech = ($order['type'] === 'Technology');
+    if ($is_tech) {
+        $wr = $db->query("SELECT first_name, last_name, email, role FROM users WHERE role = 'BT' AND active = 1 ORDER BY last_name, first_name");
+    } else {
+        $wr = $db->query("SELECT first_name, last_name, email, role FROM users WHERE role IN ('MW','BC','BM') AND active = 1 ORDER BY last_name, first_name");
+    }
+    if ($wr) {
+        while ($row = $wr->fetch_assoc()) {
+            $row['name'] = trim($row['first_name'] . ' ' . $row['last_name']);
+            if (!in_array($row['email'], $assigned_emails)) {
+                $worker_pool[] = $row;
+            }
+        }
+        $wr->free();
+    }
 }
 
 $db->close();
@@ -106,16 +152,45 @@ if ($notes_raw) {
     $log_entries = array_reverse($log_entries);
 }
 
-$can_complete = ($status === 'In Progress');
-$complete_action = ($user_role === 'MM') ? 'mm_complete' : 'worker_complete';
+$can_complete    = false;
+$complete_action = '';
+$bt_can_act      = false;
+
+// Manager action variables
+$assign_action  = '';
+$mgr_complete   = '';
+$mgr_reject     = '';
+$reject_action  = '';
+$mgr_can_act    = false;
+$mgr_can_assign = false;
+
+if ($user_role === 'BT') {
+    $bt_can_act    = ($status === 'Pending Approval');
+    $reject_action = 'bt_reject';
+} elseif ($is_mgr) {
+    $is_tech = ($order['type'] === 'Technology');
+    $assign_action = $is_tech ? 'mt_assign'   : 'mm_assign';
+    $mgr_complete  = $is_tech ? 'mt_complete'  : 'mm_complete';
+    $mgr_reject    = $is_tech ? 'mt_reject'    : 'mm_reject';
+    $reject_action = $mgr_reject;
+    $mgr_can_act    = in_array($status, ['Approved','In Progress']);
+    $mgr_can_assign = !empty($worker_pool);
+} elseif (in_array($user_role, ['MW','BC','BM'])) {
+    $can_complete    = ($status === 'In Progress');
+    $complete_action = 'worker_complete';
+}
 
 $role_labels = [
     'MW' => 'Maintenance Worker',
     'BC' => 'Building Custodian',
     'BM' => 'Building Maintenance',
     'MM' => 'Maintenance Manager',
+    'BT' => 'Building Technician',
+    'MT' => 'Technology Manager',
+    'A'  => 'Administrator',
+    'U'  => 'User',
 ];
-$role_label = $role_labels[$user_role] ?? 'Worker';
+$role_label = $role_labels[$user_role] ?? 'User';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -407,6 +482,116 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ── MANAGER ACTION BUTTONS ── */
+.manager-actions-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.btn-assign{
+    width:100%;padding:15px;border-radius:12px;
+    background:var(--navy);color:#fff;border:none;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    -webkit-tap-highlight-color:transparent;transition:background .12s;
+}
+.btn-assign:active{background:#1a3a56}
+.btn-mgr-complete{
+    width:100%;padding:15px;border-radius:12px;
+    background:#16a34a;color:#fff;border:none;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:background .12s;
+}
+.btn-mgr-complete:active{background:#15803d}
+.btn-mgr-reject{
+    width:100%;padding:15px;border-radius:12px;
+    background:transparent;color:#dc2626;border:1.5px solid #dc2626;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:all .12s;
+}
+.btn-mgr-reject:active{background:#fee2e2}
+
+/* ── WORKER PICKER SHEET ── */
+.worker-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.45);z-index:200;
+}
+.worker-overlay.open{display:block}
+.worker-sheet{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#fff;border-radius:20px 20px 0 0;
+    max-height:75vh;display:flex;flex-direction:column;
+    z-index:201;transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    padding-bottom:calc(env(safe-area-inset-bottom,0px));
+}
+.worker-sheet.open{transform:translateY(0)}
+.worker-sheet-handle{width:40px;height:4px;background:#e0e0e0;border-radius:2px;margin:12px auto 0;flex-shrink:0}
+.worker-sheet-header{padding:14px 20px 12px;border-bottom:1px solid #f0f4f8;flex-shrink:0}
+.worker-sheet-title{font-weight:700;font-size:16px;color:#1a1a2e}
+.worker-sheet-sub{font-size:12px;color:#6b7a8d;margin-top:2px}
+.worker-list{overflow-y:auto;flex:1}
+.worker-item{
+    display:flex;align-items:center;gap:12px;
+    padding:13px 20px;border:none;background:transparent;
+    width:100%;text-align:left;font-family:'Barlow',sans-serif;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    border-bottom:1px solid #f8f9fa;
+}
+.worker-item:active{background:#f8f9fa}
+.worker-item.selected{background:#e6f7fb}
+.worker-avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:var(--cyan);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;flex-shrink:0;
+}
+.worker-name{flex:1;font-size:14px;font-weight:600;color:#1a1a2e}
+.worker-role-tag{font-size:11px;color:#6b7a8d}
+.worker-check{
+    width:22px;height:22px;border-radius:50%;
+    border:2px solid #d0d5dd;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;transition:all .15s;
+}
+.worker-item.selected .worker-check{background:var(--cyan);border-color:var(--cyan)}
+.worker-sheet-footer{padding:14px 20px;border-top:1px solid #f0f4f8;flex-shrink:0}
+.btn-confirm-assign{
+    width:100%;padding:14px;border-radius:12px;
+    background:var(--cyan);color:#fff;border:none;
+    font-size:15px;font-weight:700;font-family:'Barlow',sans-serif;
+    cursor:pointer;transition:background .12s;
+}
+.btn-confirm-assign:active{background:var(--cyan-dark)}
+.btn-confirm-assign:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── BT ACTION BUTTONS ── */
+.bt-actions-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.btn-bt-approve{
+    width:100%;padding:15px;border-radius:12px;
+    background:var(--cyan);color:#fff;border:none;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:background .12s;
+}
+.btn-bt-approve:active{background:var(--cyan-dark)}
+.btn-bt-complete{
+    width:100%;padding:15px;border-radius:12px;
+    background:#16a34a;color:#fff;border:none;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:background .12s;
+}
+.btn-bt-complete:active{background:#15803d}
+.btn-bt-reject{
+    width:100%;padding:15px;border-radius:12px;
+    background:transparent;color:#dc2626;
+    border:1.5px solid #dc2626;
+    font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+    letter-spacing:.03em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:all .12s;
+}
+.btn-bt-reject:active{background:#fee2e2}
+
 /* ── COMPLETED STATE ── */
 .completed-banner{
     background:#d1fae5;border:1px solid #6ee7b7;
@@ -483,6 +668,21 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
         </div>
         <?php endif; ?>
 
+        <?php if (!empty($assigned_workers)): ?>
+        <div style="border-top:1px solid #f0f4f8;padding:12px 16px">
+            <div style="font-size:10px;font-weight:700;color:#aab0bb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Assigned Workers</div>
+            <?php foreach ($assigned_workers as $w):
+                $wp = explode(' ', trim($w['user_name']));
+                $wi = strtoupper(substr($wp[0],0,1).(isset($wp[1])?substr($wp[1],0,1):''));
+            ?>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                <div class="worker-avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0"><?= htmlspecialchars($wi) ?></div>
+                <div style="font-size:14px;font-weight:600;color:#1a1a2e"><?= htmlspecialchars($w['user_name']) ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- Activity log -->
         <div style="border-top:1px solid #f0f4f8">
             <button class="log-toggle" id="log-toggle" aria-expanded="false">
@@ -506,8 +706,39 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     </div>
     <?php endif; ?>
 
-    <?php if ($status === 'In Progress'): ?>
-    <!-- Update form -->
+    <?php if ($user_role === 'BT' && $bt_can_act): ?>
+    <!-- BT: note + approve / reject / complete -->
+    <div class="update-card">
+        <div class="section-title">Add Note (Optional)</div>
+        <textarea id="note-text" placeholder="Add a note about this order…" rows="3"></textarea>
+        <button class="btn-save" id="btn-save">Save Note</button>
+    </div>
+    <div class="bt-actions-wrap">
+        <button class="btn-bt-approve" id="btn-bt-approve">Approve &amp; Send to Principal</button>
+        <button class="btn-bt-complete" id="btn-bt-complete">Mark Completed Directly</button>
+        <button class="btn-bt-reject" id="btn-bt-reject">Reject Order</button>
+    </div>
+
+    <?php elseif ($mgr_can_act): ?>
+    <!-- Manager (MM / MT / A): note + assign + complete + reject -->
+    <div class="update-card">
+        <div class="section-title">Add Note (Optional)</div>
+        <textarea id="note-text" placeholder="Add a note about this order…" rows="3"></textarea>
+        <button class="btn-save" id="btn-save">Save Note</button>
+    </div>
+    <div class="manager-actions-wrap">
+        <?php if ($mgr_can_assign): ?>
+        <button class="btn-assign" id="btn-assign">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Assign Workers
+        </button>
+        <?php endif; ?>
+        <button class="btn-mgr-complete" id="btn-mgr-complete">Mark Complete</button>
+        <button class="btn-mgr-reject" id="btn-mgr-reject">Reject Order</button>
+    </div>
+
+    <?php elseif ($can_complete): ?>
+    <!-- Field worker / MM: note + photos + complete -->
     <div class="update-card">
         <div class="section-title">Add Update</div>
         <textarea id="note-text" placeholder="Describe what you did, what's needed, any relevant details…" rows="4"></textarea>
@@ -523,8 +754,6 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
 
         <button class="btn-save" id="btn-save">Save Update</button>
     </div>
-
-    <!-- Mark complete -->
     <div class="complete-wrap">
         <button class="btn-complete" id="btn-complete">Mark as Complete</button>
     </div>
@@ -532,11 +761,11 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
 
 </div><!-- /content -->
 
-<!-- Confirm complete modal -->
+<!-- Confirm modal (reused for complete / BT approve / BT complete) -->
 <div class="modal-overlay" id="confirm-overlay">
     <div class="modal">
-        <h3>Mark Order Complete?</h3>
-        <p>This will close <?= $wo_num ?> and send a completion notification to the submitter. This cannot be undone.</p>
+        <h3 id="confirm-title">Mark Order Complete?</h3>
+        <p id="confirm-body">This will close <?= $wo_num ?> and send a completion notification to the submitter. This cannot be undone.</p>
         <div class="modal-actions">
             <button class="btn-confirm" id="btn-confirm-yes">Yes, Mark Complete</button>
             <button class="btn-cancel" id="btn-confirm-cancel">Cancel</button>
@@ -544,14 +773,63 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     </div>
 </div>
 
+<!-- BT reject modal -->
+<div class="modal-overlay" id="reject-overlay">
+    <div class="modal">
+        <h3>Reject Order</h3>
+        <p>Please provide a reason for rejecting <?= $wo_num ?>.</p>
+        <textarea id="reject-note" rows="3" placeholder="Reason for rejection…" style="margin-bottom:12px"></textarea>
+        <div class="modal-actions">
+            <button class="btn-confirm" style="background:#dc2626" id="btn-reject-confirm">Reject Order</button>
+            <button class="btn-cancel" id="btn-reject-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Worker picker sheet -->
+<?php if ($mgr_can_assign): ?>
+<div class="worker-overlay" id="worker-overlay"></div>
+<div class="worker-sheet" id="worker-sheet" role="dialog" aria-modal="true" aria-label="Assign Workers">
+    <div class="worker-sheet-handle"></div>
+    <div class="worker-sheet-header">
+        <div class="worker-sheet-title">Assign Workers</div>
+        <div class="worker-sheet-sub"><?= $order['type'] === 'Technology' ? 'Select technician(s) to assign' : 'Select worker(s) to assign' ?></div>
+    </div>
+    <div class="worker-list">
+        <?php foreach ($worker_pool as $w):
+            $initials = strtoupper(substr($w['name'], 0, 1));
+            $role_tag = $role_labels[$w['role'] ?? ''] ?? '';
+        ?>
+        <button class="worker-item"
+                data-email="<?= htmlspecialchars($w['email']) ?>"
+                data-name="<?= htmlspecialchars($w['name']) ?>">
+            <div class="worker-avatar"><?= $initials ?></div>
+            <div>
+                <div class="worker-name"><?= htmlspecialchars($w['name']) ?></div>
+            </div>
+            <div class="worker-check">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+        </button>
+        <?php endforeach; ?>
+    </div>
+    <div class="worker-sheet-footer">
+        <button class="btn-confirm-assign" id="btn-confirm-assign" disabled>Select workers above</button>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
 const ORDER_ID      = <?= (int)$order['id'] ?>;
 const WO_NUM        = '<?= $wo_num ?>';
-const COMPLETE_ACTION = '<?= $complete_action ?>';
 const ACTION_URL    = '../wo_action.php';
+const ASSIGN_ACTION = '<?= $assign_action ?>';
+const MGR_COMPLETE  = '<?= $mgr_complete ?>';
+const REJECT_ACTION = '<?= $reject_action ?>';
+let _pendingAction  = '<?= $complete_action ?>';
 
 // ── Photo lightbox with swipe ─────────────────────────────────
 const lightbox      = document.getElementById('lightbox');
@@ -806,35 +1084,212 @@ confirmOverlay.addEventListener('click', function(e) {
 
 if (btnConfirmYes) {
     btnConfirmYes.addEventListener('click', function() {
-        confirmOverlay.classList.remove('open');
+        closeConfirm();
         btnConfirmYes.disabled = true;
-        btnComplete.disabled = true;
-        btnComplete.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></svg> Completing…';
+        if (btnComplete) { btnComplete.disabled = true; }
 
         const fd = new FormData();
-        fd.append('action', COMPLETE_ACTION);
+        fd.append('action', _pendingAction);
         fd.append('order_id', ORDER_ID);
-        fd.append('note', '');
+        fd.append('note', document.getElementById('note-text') ? document.getElementById('note-text').value.trim() : '');
 
         fetch(ACTION_URL, { method: 'POST', body: fd })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showToast('Order marked complete!', 2000);
+                    const msgs = {
+                        'bt_approve': 'Approved — sent to Building Principal.',
+                        'bt_complete': 'Order marked complete!',
+                        'worker_complete': 'Order marked complete!',
+                        'mm_complete': 'Order marked complete!',
+                    };
+                    showToast(msgs[_pendingAction] || 'Done!', 2000);
                     setTimeout(function() { window.location.href = 'dashboard.php'; }, 1800);
                 } else {
                     showToast(data.message || 'Error. Please try again.');
-                    closeConfirm();
-                    btnComplete.disabled = false;
                     btnConfirmYes.disabled = false;
-                    btnComplete.innerHTML = 'Mark as Complete';
+                    if (btnComplete) { btnComplete.disabled = false; }
                 }
             })
             .catch(function() {
                 showToast('Network error. Please try again.');
-                btnComplete.disabled = false;
                 btnConfirmYes.disabled = false;
-                btnComplete.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Mark as Complete';
+                if (btnComplete) { btnComplete.disabled = false; }
+            });
+    });
+}
+
+// ── BT action buttons ─────────────────────────────────────────
+const btnBtApprove  = document.getElementById('btn-bt-approve');
+const btnBtComplete = document.getElementById('btn-bt-complete');
+const btnBtReject   = document.getElementById('btn-bt-reject');
+
+if (btnBtApprove) {
+    btnBtApprove.addEventListener('click', function() {
+        _pendingAction = 'bt_approve';
+        document.getElementById('confirm-title').textContent = 'Approve & Send to Principal?';
+        document.getElementById('confirm-body').textContent  = 'This will escalate ' + WO_NUM + ' to the Building Principal for further approval.';
+        document.getElementById('btn-confirm-yes').textContent = 'Yes, Approve';
+        openConfirm();
+    });
+}
+if (btnBtComplete) {
+    btnBtComplete.addEventListener('click', function() {
+        _pendingAction = 'bt_complete';
+        document.getElementById('confirm-title').textContent = 'Mark Order Complete?';
+        document.getElementById('confirm-body').textContent  = 'This will close ' + WO_NUM + ' and notify the submitter. This cannot be undone.';
+        document.getElementById('btn-confirm-yes').textContent = 'Yes, Mark Complete';
+        openConfirm();
+    });
+}
+if (btnBtReject) {
+    btnBtReject.addEventListener('click', function() {
+        const ro = document.getElementById('reject-overlay');
+        ro.classList.add('open');
+        requestAnimationFrame(function() { requestAnimationFrame(function() { ro.classList.add('visible'); }); });
+    });
+}
+
+// Reject overlay controls
+const rejectOverlay    = document.getElementById('reject-overlay');
+const btnRejectConfirm = document.getElementById('btn-reject-confirm');
+const btnRejectCancel  = document.getElementById('btn-reject-cancel');
+
+function closeReject() {
+    if (!rejectOverlay) return;
+    rejectOverlay.classList.remove('visible');
+    setTimeout(function() { rejectOverlay.classList.remove('open'); }, 300);
+}
+if (btnRejectCancel) btnRejectCancel.addEventListener('click', closeReject);
+if (rejectOverlay) rejectOverlay.addEventListener('click', function(e) { if (e.target === this) closeReject(); });
+
+if (btnRejectConfirm) {
+    btnRejectConfirm.addEventListener('click', function() {
+        const note = document.getElementById('reject-note').value.trim();
+        if (!note) { showToast('Please enter a reason for rejection.'); return; }
+        btnRejectConfirm.disabled = true;
+        const fd = new FormData();
+        fd.append('action', REJECT_ACTION);
+        fd.append('order_id', ORDER_ID);
+        fd.append('note', note);
+        fetch(ACTION_URL, { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Order rejected.', 2000);
+                    setTimeout(function() { window.location.href = 'dashboard.php'; }, 1800);
+                } else {
+                    showToast(data.message || 'Error. Please try again.');
+                    btnRejectConfirm.disabled = false;
+                }
+            })
+            .catch(function() {
+                showToast('Network error. Please try again.');
+                btnRejectConfirm.disabled = false;
+            });
+    });
+}
+
+// ── Manager action buttons (MM / MT / A) ──────────────────────
+const btnMgrComplete = document.getElementById('btn-mgr-complete');
+const btnMgrReject   = document.getElementById('btn-mgr-reject');
+
+if (btnMgrComplete) {
+    btnMgrComplete.addEventListener('click', function() {
+        _pendingAction = MGR_COMPLETE;
+        document.getElementById('confirm-title').textContent = 'Mark Order Complete?';
+        document.getElementById('confirm-body').textContent  = 'This will close ' + WO_NUM + ' and notify the submitter. This cannot be undone.';
+        document.getElementById('btn-confirm-yes').textContent = 'Yes, Mark Complete';
+        openConfirm();
+    });
+}
+if (btnMgrReject) {
+    btnMgrReject.addEventListener('click', function() {
+        const ro = document.getElementById('reject-overlay');
+        ro.classList.add('open');
+        requestAnimationFrame(function() { requestAnimationFrame(function() { ro.classList.add('visible'); }); });
+    });
+}
+
+// ── Worker picker ─────────────────────────────────────────────
+const btnAssign       = document.getElementById('btn-assign');
+const workerOverlay   = document.getElementById('worker-overlay');
+const workerSheet     = document.getElementById('worker-sheet');
+const btnConfirmAssign = document.getElementById('btn-confirm-assign');
+let selectedWorkers   = [];
+
+function openWorkerSheet() {
+    if (!workerSheet) return;
+    workerSheet.classList.add('open');
+    workerOverlay.classList.add('open');
+}
+function closeWorkerSheet() {
+    if (!workerSheet) return;
+    workerSheet.classList.remove('open');
+    workerOverlay.classList.remove('open');
+}
+
+if (btnAssign)      btnAssign.addEventListener('click', openWorkerSheet);
+if (workerOverlay)  workerOverlay.addEventListener('click', closeWorkerSheet);
+
+// Swipe down to close worker sheet
+if (workerSheet) {
+    let _wsy = 0;
+    workerSheet.addEventListener('touchstart', function(e){ _wsy = e.touches[0].clientY; }, {passive:true});
+    workerSheet.addEventListener('touchend', function(e){
+        if (e.changedTouches[0].clientY - _wsy > 60) closeWorkerSheet();
+    }, {passive:true});
+}
+
+document.querySelectorAll('.worker-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+        const email = this.dataset.email;
+        const name  = this.dataset.name;
+        const idx   = selectedWorkers.findIndex(function(w) { return w.email === email; });
+        if (idx === -1) {
+            selectedWorkers.push({email: email, name: name});
+            this.classList.add('selected');
+        } else {
+            selectedWorkers.splice(idx, 1);
+            this.classList.remove('selected');
+        }
+        if (btnConfirmAssign) {
+            if (selectedWorkers.length > 0) {
+                const n = selectedWorkers.length;
+                btnConfirmAssign.textContent = 'Assign ' + n + ' Worker' + (n > 1 ? 's' : '');
+                btnConfirmAssign.disabled = false;
+            } else {
+                btnConfirmAssign.textContent = 'Select workers above';
+                btnConfirmAssign.disabled = true;
+            }
+        }
+    });
+});
+
+if (btnConfirmAssign) {
+    btnConfirmAssign.addEventListener('click', function() {
+        if (selectedWorkers.length === 0) { showToast('Please select at least one worker.'); return; }
+        btnConfirmAssign.disabled = true;
+        const fd = new FormData();
+        fd.append('action', ASSIGN_ACTION);
+        fd.append('order_id', ORDER_ID);
+        fd.append('assignees', JSON.stringify(selectedWorkers));
+        const noteEl = document.getElementById('note-text');
+        fd.append('note', noteEl ? noteEl.value.trim() : '');
+        fetch(ACTION_URL, { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Workers assigned successfully.', 2500);
+                    setTimeout(function() { window.location.href = 'dashboard.php'; }, 2300);
+                } else {
+                    showToast(data.message || 'Error. Please try again.');
+                    btnConfirmAssign.disabled = false;
+                }
+            })
+            .catch(function() {
+                showToast('Network error. Please try again.');
+                btnConfirmAssign.disabled = false;
             });
     });
 }
