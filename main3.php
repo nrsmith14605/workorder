@@ -28,9 +28,8 @@ $user_building = $_SESSION['user_building'] ?? null;
 
 // ── Mobile redirect for field roles ──────────────────────────
 $_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
-if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','BP','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
-    $wo_param = isset($_GET['wo']) ? '?wo=' . urlencode($_GET['wo']) : '';
-    header('Location: mobile/' . ($wo_param ? 'order_detail.php' . $wo_param : 'dashboard.php'));
+if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
+    header('Location: mobile/dashboard.php');
     exit;
 }
 
@@ -376,6 +375,12 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .empty-state{text-align:center;padding:52px 20px;color:#aab0bb}
 .empty-state i{font-size:42px;color:#d0d5dd;display:block;margin-bottom:12px}
 
+/* ── DESIGN PREVIEW B: Floating borderless rows ── */
+.wo-table-wrap{border:none;box-shadow:0 2px 14px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.04);border-radius:14px}
+.wo-table th{background:#fff;border-bottom:2px solid var(--cyan-muted);padding:12px 10px}
+.wo-table td{padding:14px 8px;border-bottom:1px solid #f0f2f4}
+.wo-table tbody tr:hover td{background:#f5fbfd}
+
 /* ── MODAL OVERLAY ── */
 .modal-overlay{
     display:none;
@@ -673,6 +678,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <!-- Welcome -->
     <div class="welcome-bar">
+        <p style="display:inline-block;font-size:11px;font-weight:700;color:#fff;background:var(--cyan);padding:3px 12px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">Design B — Floating Borderless</p>
         <h1>Welcome back, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?> 👋</h1>
         <p>Submit a new work order or check the status of your existing requests.</p>
     </div>

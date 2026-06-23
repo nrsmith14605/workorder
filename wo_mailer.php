@@ -13,6 +13,7 @@ use PHPMailer\PHPMailer\Exception;
 require_once __DIR__ . '/phpmailer/src/Exception.php';
 require_once __DIR__ . '/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/phpmailer/src/SMTP.php';
+require_once __DIR__ . '/includes/push_sender.php';
 
 /**
  * Look up every active BT user assigned to $building and email them,
@@ -63,7 +64,7 @@ function send_tech_wo_email(
     $pri_text = $pri_colors[$priority]['text'] ?? '#475569';
 
     // ── 3. Build the View Work Order URL ──────────────────────────────
-    $view_url = 'https://chs-cs.com/workorder/main.php?wo=' . urlencode($wo_num);
+    $view_url = 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num);
 
     // ── 4. Escape all values for HTML ─────────────────────────────────
     $desc_safe     = nl2br(htmlspecialchars($description));
@@ -259,6 +260,9 @@ HTML;
     };
 
     // ── 8. Send to each Building Tech ────────────────────────────────
+    $bt_emails = array_column($techs, 'email');
+    send_push_to_emails($bt_emails, 'New Tech Work Order', "WO {$wo_num} needs your review — {$building}, {$room}", 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num));
+
     $tech_html = $build_html('New technology work order submitted and awaiting your attention');
     foreach ($techs as $tech) {
         try {
@@ -325,7 +329,7 @@ function send_maintenance_submit_email(
     $pri_text = $pri_colors[$priority]['text'] ?? '#475569';
 
     // ── 3. Shared values ──────────────────────────────────────────────
-    $view_url      = 'https://chs-cs.com/workorder/main.php?wo=' . urlencode($wo_num);
+    $view_url      = 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num);
     $desc_safe     = nl2br(htmlspecialchars($description));
     $problem_safe  = htmlspecialchars($problem_type);
     $building_safe = htmlspecialchars($building);
@@ -498,6 +502,9 @@ HTML;
 
     // ── 6. Send to each Building Principal (if any) ──────────────────
     if (!empty($bps)) {
+        $bp_emails = array_column($bps, 'email');
+        send_push_to_emails($bp_emails, 'New Maintenance Work Order', "WO {$wo_num} needs your approval — {$building}, {$room}", 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num));
+
         $bp_html = $build_html('New maintenance work order submitted — awaiting your approval');
         foreach ($bps as $bp) {
             try {
@@ -572,7 +579,7 @@ function _build_status_email(
     $pri_bg   = $pri_colors[$priority]['bg']   ?? '#f1f5f9';
     $pri_text = $pri_colors[$priority]['text'] ?? '#475569';
 
-    $view_url    = 'https://chs-cs.com/workorder/main.php?wo=' . urlencode($wo_num);
+    $view_url    = 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num);
     $wo_safe     = htmlspecialchars($wo_num);
     $bldg_safe   = htmlspecialchars($building);
     $room_safe   = htmlspecialchars($room);
@@ -866,6 +873,9 @@ function send_bp_notification_email(
            . "View it here: https://chs-cs.com/workorder/main.php?wo=" . urlencode($wo_num) . "\n\n"
            . "---\nWarrick County Work Order System (automated — do not reply)";
 
+    $admin_emails = array_column($admins, 'email');
+    send_push_to_emails($admin_emails, 'Work Order Needs Your Approval', "WO {$wo_num} approved by {$bt_name} — your review required", 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num));
+
     foreach ($admins as $admin) {
         try {
             $mail = _make_mailer();
@@ -935,6 +945,12 @@ function send_manager_notification_email(
            . "View it here: https://chs-cs.com/workorder/main.php?wo=" . urlencode($wo_num) . "\n\n"
            . "---\nWarrick County Work Order System (automated — do not reply)";
 
+    $mgr_emails  = array_column($managers, 'email');
+    $push_body   = ($order_type === 'Technology')
+        ? "WO {$wo_num} approved by {$bp_name} — assign a technician"
+        : "WO {$wo_num} approved by {$bp_name} — assign a worker";
+    send_push_to_emails($mgr_emails, 'Work Order Ready to Assign', $push_body, 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num));
+
     foreach ($managers as $mgr) {
         try {
             $mail = _make_mailer();
@@ -976,7 +992,7 @@ function send_assignment_email(
     $pri_bg   = $pri_colors[$priority]['bg']   ?? '#f1f5f9';
     $pri_text = $pri_colors[$priority]['text'] ?? '#475569';
 
-    $view_url    = 'https://chs-cs.com/workorder/main.php?wo=' . urlencode($wo_num);
+    $view_url    = 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num);
     $wo_safe     = htmlspecialchars($wo_num);
     $bldg_safe   = htmlspecialchars($building);
     $room_safe   = htmlspecialchars($room);
@@ -1122,6 +1138,8 @@ HTML;
            . ($note ? "{$manager_role} Notes:\n{$note}\n\n" : '')
            . "View your work order: https://chs-cs.com/workorder/main.php?wo=" . urlencode($wo_num) . "\n\n"
            . "---\nWarrick County Work Order System (automated — do not reply)";
+
+    send_push_to_emails([$worker_email], 'Work Order Assigned to You', "WO {$wo_num} has been assigned to you by {$manager_name} — {$building}, {$room}", 'https://chs-cs.com/workorder/mobile/order_detail.php?wo=' . urlencode($wo_num));
 
     try {
         $mail = _make_mailer();

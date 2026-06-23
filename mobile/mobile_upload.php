@@ -17,7 +17,7 @@ $user_email = $user['email'];
 $user_name  = $user['name'] ?? $user_email;
 $user_role  = $_SESSION['user_role'] ?? 'U';
 
-if (!in_array($user_role, ['MW','BC','BM','MM'])) {
+if (!in_array($user_role, ['MW','BC','BM','MM','MT','A'])) {
     echo json_encode(['success' => false, 'message' => 'Not authorized.']);
     exit;
 }
@@ -48,8 +48,16 @@ if (!$order) {
 }
 
 // Verify access
-if ($user_role === 'MM') {
+if ($user_role === 'A') {
+    // Admin can upload to any order
+} elseif ($user_role === 'MM') {
     if ($order['type'] !== 'Maintenance') {
+        $db->close();
+        echo json_encode(['success' => false, 'message' => 'Not authorized.']);
+        exit;
+    }
+} elseif ($user_role === 'MT') {
+    if ($order['type'] !== 'Technology') {
         $db->close();
         echo json_encode(['success' => false, 'message' => 'Not authorized.']);
         exit;
@@ -88,6 +96,8 @@ $role_labels = [
     'BC' => 'Building Custodian',
     'BM' => 'Building Maintenance',
     'MM' => 'Maintenance Manager',
+    'MT' => 'Technology Manager',
+    'A'  => 'Administrator',
 ];
 $actor_role_label = $role_labels[$user_role] ?? $user_role;
 $timestamp  = date('m/d/Y g:i A');

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone Setup — WCSC Work Order App</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+    --navy:#0B1F2E;
+    --navy2:#112333;
+    --cyan:#29b6d5;
+    --cyan-light:#e6f7fb;
+    --cyan-dark:#1a9ab8;
+    --text:#1a2233;
+    --muted:#6b7a8d;
+    --border:#e2e8f0;
+    --bg:#f4f7fa;
+}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── HEADER ── */
+.site-header{background:var(--navy);padding:20px 0}
+.header-inner{max-width:720px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:14px}
+.header-badge{background:rgba(41,182,213,.12);border:1px solid rgba(41,182,213,.3);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.header-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:.01em}
+.header-sub{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(135deg,var(--navy) 0%,#0d2a40 100%);padding:40px 24px 48px;text-align:center}
+.hero-platform{display:inline-flex;align-items:center;gap:8px;background:rgba(41,182,213,.15);border:1px solid rgba(41,182,213,.3);border-radius:99px;padding:6px 16px;margin-bottom:18px}
+.hero-platform svg{color:var(--cyan)}
+.hero-platform span{font-size:12px;font-weight:700;color:var(--cyan);letter-spacing:.06em;text-transform:uppercase}
+.hero h1{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:#fff;line-height:1.1;margin-bottom:12px}
+.hero p{font-size:15px;color:rgba(255,255,255,.65);max-width:480px;margin:0 auto;line-height:1.6}
+.safari-note{display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 16px}
+.safari-note svg{color:#f59e0b;flex-shrink:0}
+.safari-note span{font-size:13px;font-weight:600;color:#fbbf24;text-align:left;line-height:1.4}
+
+/* ── CONTENT ── */
+.content{max-width:720px;margin:0 auto;padding:40px 24px 60px}
+
+/* ── STEPS ── */
+.steps{display:flex;flex-direction:column;gap:32px}
+.step{display:grid;grid-template-columns:48px 1fr;gap:0 20px;align-items:start}
+.step-number-col{display:flex;flex-direction:column;align-items:center;gap:0}
+.step-num{width:48px;height:48px;border-radius:50%;background:var(--cyan);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(41,182,213,.35)}
+.step-line{width:2px;background:linear-gradient(to bottom,var(--cyan),transparent);flex:1;min-height:40px;margin-top:6px}
+.step:last-child .step-line{display:none}
+.step-body{padding-top:8px;padding-bottom:8px}
+.step-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--navy);margin-bottom:6px;letter-spacing:.01em}
+.step-desc{font-size:14px;color:#3d4f5e;line-height:1.65;margin-bottom:14px}
+.step-desc strong{color:var(--navy);font-weight:700}
+.step-img{width:100%;background:#fff;border:2px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:28px 16px;color:var(--muted)}
+.step-img svg{opacity:.35}
+.step-img-label{font-size:12px;font-weight:600;color:var(--muted);text-align:center;line-height:1.4}
+.step-img.tall{min-height:220px}
+.step-img.short{min-height:140px}
+
+/* ── TIP BOX ── */
+.tip{display:flex;align-items:flex-start;gap:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:12px}
+.tip svg{color:#f59e0b;flex-shrink:0;margin-top:1px}
+.tip p{font-size:13px;color:#92400e;line-height:1.5}
+.tip p strong{font-weight:700}
+
+/* ── FOOTER ── */
+.page-footer{background:var(--navy);padding:24px;text-align:center}
+.page-footer p{font-size:12px;color:rgba(255,255,255,.35);line-height:1.7}
+.page-footer a{color:var(--cyan);text-decoration:none}
+
+@media(max-width:520px){
+    .hero h1{font-size:28px}
+    .step{grid-template-columns:40px 1fr;gap:0 14px}
+    .step-num{width:40px;height:40px;font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="header-inner">
+        <div>
+            <div class="header-sub">Warrick County School Corporation</div>
+            <div class="header-title">Work Order System</div>
+        </div>
+        <div class="header-badge">Setup Guide</div>
+    </div>
+</header>
+
+<div class="hero">
+    <div class="hero-platform">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        <span>iPhone Instructions</span>
+    </div>
+    <h1>Add the Work Order App<br>to Your iPhone</h1>
+    <p>Follow these steps to install the app on your home screen and enable notifications. It takes about two minutes.</p>
+    <div class="safari-note">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>Important:</strong> These steps must be done in <strong>Safari</strong>. Chrome and other browsers on iPhone will not work for this installation.</span>
+    </div>
+</div>
+
+<div class="content">
+    <div class="steps">
+
+        <!-- STEP 1 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">1</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Open Safari and Go to the Site</div>
+                <div class="step-desc">Open the <strong>Safari</strong> browser on your iPhone. In the address bar at the top, type <strong>chs-cs.com/workorder</strong> and tap Go.</div>
+                <div class="step-img short">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    <div class="step-img-label">Screenshot: Safari address bar showing chs-cs.com/workorder</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">2</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Log In With Your School Account</div>
+                <div class="step-desc">Sign in using your <strong>Warrick County Google account</strong> (the same one you use for school email). You should see your work order dashboard after signing in.</div>
+                <div class="step-img short">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <div class="step-img-label">Screenshot: Google sign-in screen</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">3</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Tap the Share Button</div>
+                <div class="step-desc">At the <strong>bottom of the Safari screen</strong>, look for the Share button — it looks like a small box with an arrow pointing upward out of it. Tap it once.</div>
+                <div class="tip">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <p>If you don't see the bottom toolbar, try scrolling up slightly on the page — it will reappear.</p>
+                </div>
+                <div class="step-img tall" style="margin-top:14px">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    <div class="step-img-label">Screenshot: Safari bottom toolbar with Share button highlighted</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">4</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Tap "Add to Home Screen"</div>
+                <div class="step-desc">A menu will slide up from the bottom of your screen. <strong>Scroll down</strong> through the options until you see <strong>"Add to Home Screen"</strong> and tap it.</div>
+                <div class="tip">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <p>It won't be the first option — scroll past your contacts and apps. Look for it listed with a <strong>plus (+) icon</strong>.</p>
+                </div>
+                <div class="step-img tall" style="margin-top:14px">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    <div class="step-img-label">Screenshot: Share sheet with "Add to Home Screen" option highlighted</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">5</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Tap "Add" to Confirm</div>
+                <div class="step-desc">A screen will appear showing the app name. You can leave the name as-is. Tap <strong>"Add"</strong> in the upper right corner to finish.</div>
+                <div class="step-img short">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <div class="step-img-label">Screenshot: "Add to Home Screen" confirmation screen</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 6 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">6</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Open the App From Your Home Screen</div>
+                <div class="step-desc">Go to your iPhone home screen and find the <strong>Work Orders</strong> icon. <strong>Always open the app this way</strong> — using the home screen icon instead of Safari. Tap it now to continue setup.</div>
+                <div class="step-img short">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <div class="step-img-label">Screenshot: iPhone home screen with Work Orders icon</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 7 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">7</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Enable Push Notifications</div>
+                <div class="step-desc">When the app opens, you'll see a dark blue banner near the top that says <strong>"Enable push notifications."</strong> Tap that banner — your iPhone will then ask if you want to allow notifications. Tap <strong>"Allow."</strong></div>
+                <div class="tip">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <p>This is what lets the app alert you when a work order needs your attention — even when the app isn't open.</p>
+                </div>
+                <div class="step-img tall" style="margin-top:14px">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <div class="step-img-label">Screenshot: Notification banner in app + "Allow Notifications" iPhone prompt</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /steps -->
+</div><!-- /content -->
+
+<footer class="page-footer">
+    <p>Warrick County School Corporation — Work Order System<br>
+    Questions? Contact your building technician or <a href="mailto:dsmith@warrick.k12.in.us">dsmith@warrick.k12.in.us</a></p>
+</footer>
+
+</body>
+</html>

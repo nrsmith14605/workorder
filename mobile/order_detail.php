@@ -13,7 +13,7 @@ $user_given = $user['given_name'] ?? '';
 $user_pic   = $user['picture'] ?? '';
 $user_role  = $_SESSION['user_role'] ?? 'U';
 
-if (!in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A'])) {
+if (!in_array($user_role, ['MW','BC','BM','MM','BT','BP','U','MT','A'])) {
     header('Location: ../main.php');
     exit;
 }
@@ -56,6 +56,11 @@ if ($user_role === 'MM') {
 } elseif ($user_role === 'BT') {
     $bt_buildings = array_filter(array_map('trim', explode(',', $_SESSION['user_building'] ?? '')));
     if ($order['type'] !== 'Technology' || !in_array($order['building'], $bt_buildings)) {
+        $db->close(); header('Location: dashboard.php'); exit;
+    }
+} elseif ($user_role === 'BP') {
+    $bp_building = $_SESSION['user_building'] ?? '';
+    if ($order['building'] !== $bp_building) {
         $db->close(); header('Location: dashboard.php'); exit;
     }
 } elseif ($user_role === 'U') {
@@ -155,6 +160,7 @@ if ($notes_raw) {
 $can_complete    = false;
 $complete_action = '';
 $bt_can_act      = false;
+$bp_can_act      = false;
 
 // Manager action variables
 $assign_action  = '';
@@ -167,6 +173,9 @@ $mgr_can_assign = false;
 if ($user_role === 'BT') {
     $bt_can_act    = ($status === 'Pending Approval');
     $reject_action = 'bt_reject';
+} elseif ($user_role === 'BP') {
+    $bp_can_act    = in_array($status, ['Pending Approval', 'Approved']);
+    $reject_action = 'bp_reject';
 } elseif ($is_mgr) {
     $is_tech = ($order['type'] === 'Technology');
     $assign_action = $is_tech ? 'mt_assign'   : 'mm_assign';
@@ -186,6 +195,7 @@ $role_labels = [
     'BM' => 'Building Maintenance',
     'MM' => 'Maintenance Manager',
     'BT' => 'Building Technician',
+    'BP' => 'Building Principal',
     'MT' => 'Technology Manager',
     'A'  => 'Administrator',
     'U'  => 'User',
@@ -200,10 +210,16 @@ $role_label = $role_labels[$user_role] ?? 'User';
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WCSC Work Orders">
 <meta name="theme-color" content="#0B1F2E">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.php?size=180">
+<link rel="apple-touch-icon" sizes="167x167" href="icon.php?size=167">
+<link rel="apple-touch-icon" sizes="152x152" href="icon.php?size=152">
+<link rel="apple-touch-icon" sizes="120x120" href="icon.php?size=120">
 <title><?= $wo_num ?> &mdash; WCSC Work Orders</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script>(function(){var f=localStorage.getItem('wcsc_fz')||'12';var m={xs:'8',sm:'8',md:'10',lg:'12',xl:'14'};if(m[f]){f=m[f];localStorage.setItem('wcsc_fz',f);}document.documentElement.classList.add('font-'+f)})();</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -372,21 +388,30 @@ textarea{
 textarea:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
 textarea:disabled{background:#f8f9fa;color:#6b7a8d}
 
+/* ── UPLOAD PROGRESS ── */
+.upload-progress-wrap{display:none;margin-top:10px}
+.upload-progress-wrap.active{display:block}
+.upload-progress-bar-bg{height:8px;background:#e8ecf0;border-radius:99px;overflow:hidden}
+.upload-progress-bar-fill{height:100%;width:0%;background:#4a6cf7;border-radius:99px;transition:width .25s ease}
+.upload-progress-label{margin-top:5px;font-size:12px;font-weight:600;color:#6b7a8d;text-align:center}
 /* ── PHOTO UPLOAD ── */
 .photo-upload-row{
-    display:flex;align-items:center;gap:10px;
+    display:flex;flex-direction:column;gap:8px;
     margin-top:10px;
 }
 .photo-upload-btn{
-    display:flex;align-items:center;gap:7px;
-    padding:9px 14px;border-radius:10px;
+    width:100%;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:11px 14px;border-radius:10px;
     border:1.5px dashed #d0d5dd;background:transparent;
-    font-size:13px;font-weight:600;color:#6b7a8d;
+    font-size:14px;font-weight:600;color:#6b7a8d;
     font-family:'Barlow',sans-serif;cursor:pointer;
-    -webkit-tap-highlight-color:transparent;flex-shrink:0;
+    -webkit-tap-highlight-color:transparent;
 }
 .photo-upload-btn:active{background:#f8f9fa}
-.photo-previews{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.photo-previews{display:flex;gap:6px;flex-wrap:wrap}
+.photo-btn-row{display:flex;gap:8px}
+.photo-upload-btn{flex:1}
 .thumb-wrap{position:relative;width:52px;height:52px}
 .thumb-wrap img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #e8ecf0}
 .thumb-remove{
@@ -498,17 +523,19 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     background:#16a34a;color:#fff;border:none;
     font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
     letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;transition:background .12s;
 }
 .btn-mgr-complete:active{background:#15803d}
 .btn-mgr-reject{
     width:100%;padding:15px;border-radius:12px;
-    background:transparent;color:#dc2626;border:1.5px solid #dc2626;
+    background:#dc2626;color:#fff;border:1.5px solid #dc2626;
     font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
     letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;transition:all .12s;
 }
-.btn-mgr-reject:active{background:#fee2e2}
+.btn-mgr-reject:active{background:#b91c1c}
 
 /* ── WORKER PICKER SHEET ── */
 .worker-overlay{
@@ -571,6 +598,7 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     background:var(--cyan);color:#fff;border:none;
     font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
     letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;transition:background .12s;
 }
 .btn-bt-approve:active{background:var(--cyan-dark)}
@@ -579,18 +607,47 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     background:#16a34a;color:#fff;border:none;
     font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
     letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;transition:background .12s;
 }
 .btn-bt-complete:active{background:#15803d}
 .btn-bt-reject{
     width:100%;padding:15px;border-radius:12px;
-    background:transparent;color:#dc2626;
+    background:#dc2626;color:#fff;
     border:1.5px solid #dc2626;
     font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
     letter-spacing:.03em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;transition:all .12s;
 }
-.btn-bt-reject:active{background:#fee2e2}
+.btn-bt-reject:active{background:#b91c1c}
+
+/* ── FONT SIZE OVERRIDES ── */
+html.font-8 .detail-value{font-size:13px}
+html.font-8 .detail-label{font-size:10px}
+html.font-8 .log-entry{font-size:12px}
+html.font-8 textarea{font-size:15px}
+html.font-8 .section-title{font-size:16px}
+html.font-10 .detail-value{font-size:16px}
+html.font-10 .detail-label{font-size:12px}
+html.font-10 .log-entry{font-size:14px}
+html.font-10 textarea{font-size:17px}
+html.font-10 .section-title{font-size:18px}
+html.font-12 .detail-value{font-size:18px}
+html.font-12 .detail-label{font-size:13px}
+html.font-12 .log-entry{font-size:16px}
+html.font-12 textarea{font-size:19px}
+html.font-12 .section-title{font-size:20px}
+html.font-14 .detail-value{font-size:20px}
+html.font-14 .detail-label{font-size:14px}
+html.font-14 .log-entry{font-size:18px}
+html.font-14 textarea{font-size:21px}
+html.font-14 .section-title{font-size:22px}
+html.font-16 .detail-value{font-size:22px}
+html.font-16 .detail-label{font-size:15px}
+html.font-16 .log-entry{font-size:20px}
+html.font-16 textarea{font-size:23px}
+html.font-16 .section-title{font-size:24px}
 
 /* ── COMPLETED STATE ── */
 .completed-banner{
@@ -711,20 +768,81 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
     <div class="update-card">
         <div class="section-title">Add Note (Optional)</div>
         <textarea id="note-text" placeholder="Add a note about this order…" rows="3"></textarea>
-        <button class="btn-save" id="btn-save">Save Note</button>
+        <button class="btn-save" id="btn-save">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Save Note
+        </button>
     </div>
     <div class="bt-actions-wrap">
-        <button class="btn-bt-approve" id="btn-bt-approve">Approve &amp; Send to Principal</button>
-        <button class="btn-bt-complete" id="btn-bt-complete">Mark Completed Directly</button>
-        <button class="btn-bt-reject" id="btn-bt-reject">Reject Order</button>
+        <button class="btn-bt-approve" id="btn-bt-approve">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Approve &amp; Send to Principal
+        </button>
+        <button class="btn-bt-complete" id="btn-bt-complete">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Mark Completed Directly
+        </button>
+        <button class="btn-bt-reject" id="btn-bt-reject">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Reject Order
+        </button>
     </div>
 
-    <?php elseif ($mgr_can_act): ?>
-    <!-- Manager (MM / MT / A): note + assign + complete + reject -->
+    <?php elseif ($user_role === 'BP' && $bp_can_act): ?>
+    <!-- BP: note + approve / complete / reject -->
     <div class="update-card">
         <div class="section-title">Add Note (Optional)</div>
         <textarea id="note-text" placeholder="Add a note about this order…" rows="3"></textarea>
-        <button class="btn-save" id="btn-save">Save Note</button>
+        <button class="btn-save" id="btn-save">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Save Note
+        </button>
+    </div>
+    <div class="bt-actions-wrap">
+        <button class="btn-bt-approve" id="btn-bp-approve">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Approve &amp; Send to Manager
+        </button>
+        <button class="btn-bt-complete" id="btn-bp-complete">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Mark Completed Directly
+        </button>
+        <button class="btn-bt-reject" id="btn-bp-reject">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Reject Order
+        </button>
+    </div>
+
+    <?php elseif ($mgr_can_act): ?>
+    <!-- Manager (MM / MT / A): note + photos + assign + complete + reject -->
+    <div class="update-card">
+        <div class="section-title">Add Update</div>
+        <textarea id="note-text" placeholder="Add a note about this order…" rows="3"></textarea>
+
+        <div class="photo-upload-row">
+            <div class="photo-btn-row">
+                <button type="button" class="photo-upload-btn" id="photo-btn-camera">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Photo
+                </button>
+                <button type="button" class="photo-upload-btn" id="photo-btn-gallery">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Choose Image
+                </button>
+            </div>
+            <div class="photo-previews" id="photo-previews"></div>
+        </div>
+        <input type="file" id="photo-input-camera" accept="image/*" capture="environment" multiple style="display:none">
+        <input type="file" id="photo-input-gallery" accept="image/*" multiple style="display:none">
+
+        <button class="btn-save" id="btn-save">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Save Update
+        </button>
+        <div class="upload-progress-wrap" id="upload-progress-wrap">
+            <div class="upload-progress-bar-bg"><div class="upload-progress-bar-fill" id="upload-progress-fill"></div></div>
+            <div class="upload-progress-label" id="upload-progress-label">Uploading… 0%</div>
+        </div>
     </div>
     <div class="manager-actions-wrap">
         <?php if ($mgr_can_assign): ?>
@@ -733,8 +851,14 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
             Assign Workers
         </button>
         <?php endif; ?>
-        <button class="btn-mgr-complete" id="btn-mgr-complete">Mark Complete</button>
-        <button class="btn-mgr-reject" id="btn-mgr-reject">Reject Order</button>
+        <button class="btn-mgr-complete" id="btn-mgr-complete">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Mark Complete
+        </button>
+        <button class="btn-mgr-reject" id="btn-mgr-reject">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Reject Order
+        </button>
     </div>
 
     <?php elseif ($can_complete): ?>
@@ -744,15 +868,29 @@ textarea:disabled{background:#f8f9fa;color:#6b7a8d}
         <textarea id="note-text" placeholder="Describe what you did, what's needed, any relevant details…" rows="4"></textarea>
 
         <div class="photo-upload-row">
-            <button type="button" class="photo-upload-btn" id="photo-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Add Photo
-            </button>
+            <div class="photo-btn-row">
+                <button type="button" class="photo-upload-btn" id="photo-btn-camera">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Photo
+                </button>
+                <button type="button" class="photo-upload-btn" id="photo-btn-gallery">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Choose Image
+                </button>
+            </div>
             <div class="photo-previews" id="photo-previews"></div>
         </div>
-        <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none">
+        <input type="file" id="photo-input-camera" accept="image/*" capture="environment" multiple style="display:none">
+        <input type="file" id="photo-input-gallery" accept="image/*" multiple style="display:none">
 
-        <button class="btn-save" id="btn-save">Save Update</button>
+        <button class="btn-save" id="btn-save">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Save Update
+        </button>
+        <div class="upload-progress-wrap" id="upload-progress-wrap">
+            <div class="upload-progress-bar-bg"><div class="upload-progress-bar-fill" id="upload-progress-fill"></div></div>
+            <div class="upload-progress-label" id="upload-progress-label">Uploading… 0%</div>
+        </div>
     </div>
     <div class="complete-wrap">
         <button class="btn-complete" id="btn-complete">Mark as Complete</button>
@@ -846,7 +984,18 @@ function openLightbox(idx) {
     _lbIdx = idx;
     showLightboxAt(_lbIdx);
     lightbox.classList.add('open');
+    history.pushState({ lightbox: true }, '');
 }
+
+function closeLightbox() {
+    if (!lightbox.classList.contains('open')) return;
+    lightbox.classList.remove('open');
+    if (history.state && history.state.lightbox) history.back();
+}
+
+window.addEventListener('popstate', function() {
+    if (lightbox.classList.contains('open')) lightbox.classList.remove('open');
+});
 
 function showLightboxAt(idx) {
     const srcs = getLightboxSrcs();
@@ -865,10 +1014,10 @@ function bindThumb(img, idx) {
 }
 document.querySelectorAll('.photo-thumb').forEach(bindThumb);
 
-lightboxClose.addEventListener('click', function() { lightbox.classList.remove('open'); });
+lightboxClose.addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', function(e) {
     if (e.target === lightbox || e.target === document.getElementById('lightbox-img-wrap')) {
-        lightbox.classList.remove('open');
+        closeLightbox();
     }
 });
 
@@ -899,31 +1048,46 @@ logToggle.addEventListener('click', function() {
 });
 
 // ── Photo upload previews ─────────────────────────────────────
-const photoBtn      = document.getElementById('photo-btn');
-const photoInput    = document.getElementById('photo-input');
-const photoPreviews = document.getElementById('photo-previews');
-let selectedFiles   = [];
+const photoBtnCamera  = document.getElementById('photo-btn-camera');
+const photoBtnGallery = document.getElementById('photo-btn-gallery');
+const photoInputCamera  = document.getElementById('photo-input-camera');
+const photoInputGallery = document.getElementById('photo-input-gallery');
+const photoPreviews     = document.getElementById('photo-previews');
+let selectedFiles = [];
 
-if (photoBtn) {
-    photoBtn.addEventListener('click', function() { photoInput.click(); });
-    photoInput.addEventListener('change', function() {
-        Array.from(this.files).forEach(function(f) {
-            if (selectedFiles.length >= 5) return;
-            selectedFiles.push(f);
-        });
-        renderPreviews();
+if (photoBtnCamera)  photoBtnCamera.addEventListener('click',  function() { photoInputCamera.click(); });
+if (photoBtnGallery) photoBtnGallery.addEventListener('click', function() { photoInputGallery.click(); });
+
+function handleFileInput(input) {
+    if (!input) return;
+    input.addEventListener('change', function() {
+        const files = Array.from(this.files);
         this.value = '';
+        files.forEach(function(f) {
+            if (selectedFiles.length >= 5) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (selectedFiles.length < 5) {
+                    selectedFiles.push({ file: f, url: e.target.result });
+                    renderPreviews();
+                }
+            };
+            reader.readAsDataURL(f);
+        });
     });
 }
+
+handleFileInput(photoInputCamera);
+handleFileInput(photoInputGallery);
 
 function renderPreviews() {
     if (!photoPreviews) return;
     photoPreviews.innerHTML = '';
-    selectedFiles.forEach(function(f, idx) {
+    selectedFiles.forEach(function(item, idx) {
         const wrap = document.createElement('div');
         wrap.className = 'thumb-wrap';
         const img = document.createElement('img');
-        img.src = URL.createObjectURL(f);
+        img.src = item.url;
         const rm = document.createElement('button');
         rm.className = 'thumb-remove';
         rm.innerHTML = '&times;';
@@ -963,7 +1127,7 @@ if (btnSave) {
         fd.append('action', 'note_only');
         fd.append('order_id', ORDER_ID);
         fd.append('note', note);
-        selectedFiles.forEach(function(f) { fd.append('photos[]', f); });
+        selectedFiles.forEach(function(item) { fd.append('photos[]', item.file); });
 
         // If photos present, upload them first then save note
         if (selectedFiles.length > 0) {
@@ -971,23 +1135,60 @@ if (btnSave) {
             uploadFd.append('action', 'upload_and_note');
             uploadFd.append('order_id', ORDER_ID);
             uploadFd.append('note', note);
-            selectedFiles.forEach(function(f) { uploadFd.append('photos[]', f); });
-            fetch('mobile_upload.php', { method: 'POST', body: uploadFd })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.success) {
-                        showToast('Update saved.');
-                        document.getElementById('note-text').value = '';
-                        selectedFiles = [];
-                        renderPreviews();
-                        if (data.log_entry) prependLogEntry(data.log_entry);
-                        if (data.new_photos) appendPhotos(data.new_photos);
-                    } else {
-                        showToast(data.message || 'Save failed. Please try again.');
+            selectedFiles.forEach(function(item) { uploadFd.append('photos[]', item.file); });
+
+            const progressWrap  = document.getElementById('upload-progress-wrap');
+            const progressFill  = document.getElementById('upload-progress-fill');
+            const progressLabel = document.getElementById('upload-progress-label');
+
+            function setProgress(pct) {
+                if (!progressFill) return;
+                progressFill.style.width = pct + '%';
+                progressLabel.textContent = 'Uploading… ' + pct + '%';
+            }
+            function hideProgress() {
+                if (progressWrap) progressWrap.classList.remove('active');
+                setProgress(0);
+            }
+
+            if (progressWrap) progressWrap.classList.add('active');
+            setProgress(0);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'mobile_upload.php');
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    setProgress(Math.round((e.loaded / e.total) * 100));
+                }
+            });
+            xhr.addEventListener('load', function() {
+                setProgress(100);
+                setTimeout(function() {
+                    hideProgress();
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            showToast('Update saved.');
+                            document.getElementById('note-text').value = '';
+                            selectedFiles = [];
+                            renderPreviews();
+                            if (data.log_entry) prependLogEntry(data.log_entry);
+                            if (data.new_photos) appendPhotos(data.new_photos);
+                        } else {
+                            showToast(data.message || 'Save failed. Please try again.');
+                        }
+                    } catch(e) {
+                        showToast('Save failed. Please try again.');
                     }
                     resetSaveBtn();
-                })
-                .catch(function() { showToast('Network error. Please try again.'); resetSaveBtn(); });
+                }, 400);
+            });
+            xhr.addEventListener('error', function() {
+                hideProgress();
+                showToast('Network error. Please try again.');
+                resetSaveBtn();
+            });
+            xhr.send(uploadFd);
         } else {
             fetch(ACTION_URL, { method: 'POST', body: fd })
                 .then(function(r) { return r.json(); })
@@ -1009,7 +1210,7 @@ if (btnSave) {
 function resetSaveBtn() {
     if (!btnSave) return;
     btnSave.disabled = false;
-    btnSave.innerHTML = 'Save Update';
+    btnSave.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Save Update';
 }
 
 function prependLogEntry(text) {
@@ -1098,10 +1299,12 @@ if (btnConfirmYes) {
             .then(function(data) {
                 if (data.success) {
                     const msgs = {
-                        'bt_approve': 'Approved — sent to Building Principal.',
-                        'bt_complete': 'Order marked complete!',
-                        'worker_complete': 'Order marked complete!',
-                        'mm_complete': 'Order marked complete!',
+                        'bt_approve':     'Approved — sent to Building Principal.',
+                        'bt_complete':    'Order marked complete!',
+                        'bp_approve':     'Approved — sent to Manager.',
+                        'bp_complete':    'Order marked complete!',
+                        'worker_complete':'Order marked complete!',
+                        'mm_complete':    'Order marked complete!',
                     };
                     showToast(msgs[_pendingAction] || 'Done!', 2000);
                     setTimeout(function() { window.location.href = 'dashboard.php'; }, 1800);
@@ -1144,6 +1347,37 @@ if (btnBtComplete) {
 }
 if (btnBtReject) {
     btnBtReject.addEventListener('click', function() {
+        const ro = document.getElementById('reject-overlay');
+        ro.classList.add('open');
+        requestAnimationFrame(function() { requestAnimationFrame(function() { ro.classList.add('visible'); }); });
+    });
+}
+
+// ── BP action buttons ─────────────────────────────────────────
+const btnBpApprove  = document.getElementById('btn-bp-approve');
+const btnBpComplete = document.getElementById('btn-bp-complete');
+const btnBpReject   = document.getElementById('btn-bp-reject');
+
+if (btnBpApprove) {
+    btnBpApprove.addEventListener('click', function() {
+        _pendingAction = 'bp_approve';
+        document.getElementById('confirm-title').textContent = 'Approve & Send to Manager?';
+        document.getElementById('confirm-body').textContent  = 'This will escalate ' + WO_NUM + ' to the appropriate manager for assignment.';
+        document.getElementById('btn-confirm-yes').textContent = 'Yes, Approve';
+        openConfirm();
+    });
+}
+if (btnBpComplete) {
+    btnBpComplete.addEventListener('click', function() {
+        _pendingAction = 'bp_complete';
+        document.getElementById('confirm-title').textContent = 'Mark Order Complete?';
+        document.getElementById('confirm-body').textContent  = 'This will close ' + WO_NUM + ' and notify the submitter. This cannot be undone.';
+        document.getElementById('btn-confirm-yes').textContent = 'Yes, Mark Complete';
+        openConfirm();
+    });
+}
+if (btnBpReject) {
+    btnBpReject.addEventListener('click', function() {
         const ro = document.getElementById('reject-overlay');
         ro.classList.add('open');
         requestAnimationFrame(function() { requestAnimationFrame(function() { ro.classList.add('visible'); }); });
@@ -1280,8 +1514,8 @@ if (btnConfirmAssign) {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showToast('Workers assigned successfully.', 2500);
-                    setTimeout(function() { window.location.href = 'dashboard.php'; }, 2300);
+                    showToast('Workers assigned successfully.', 2000);
+                    setTimeout(function() { window.location.reload(); }, 1800);
                 } else {
                     showToast(data.message || 'Error. Please try again.');
                     btnConfirmAssign.disabled = false;
@@ -1299,5 +1533,6 @@ const styleEl = document.createElement('style');
 styleEl.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
 document.head.appendChild(styleEl);
 </script>
+
 </body>
 </html>

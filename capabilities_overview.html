@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WCSC Work Order System — Capabilities &amp; Features Overview</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --navy:#0B1F2E;
+  --navy-mid:#14334d;
+  --cyan:#29b6d5;
+  --cyan-dark:#1a9ab8;
+  --cyan-light:#e6f7fb;
+  --cyan-muted:#c5eaf3;
+  --gray-bg:#f0f4f8;
+  --gray-border:#d1d8e0;
+  --text:#1a1a2e;
+  --text-muted:#5a6478;
+}
+
+body{
+  font-family:'Barlow',sans-serif;
+  color:var(--text);
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+  line-height:1.5;
+}
+
+@media screen{body{background:#808080}}
+
+@page{size:letter portrait;margin:0}
+
+@media print{
+  body{background:#fff;margin:0;padding:0}
+  .page{
+    width:100%;
+    height:11in;
+    min-height:unset;
+    max-height:11in;
+    margin:0;
+    box-shadow:none;
+    overflow:hidden;
+    page-break-after:always;
+    break-after:page;
+  }
+  .page:last-child{page-break-after:auto;break-after:auto}
+  .cover{min-height:unset;height:11in}
+}
+
+.page{
+  width:8.5in;
+  min-height:11in;
+  background:#fff;
+  margin:0.4in auto 1in;
+  box-shadow:0 6px 48px rgba(0,0,0,0.35);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  overflow:hidden;
+}
+
+
+/* ══════════════════════════════════════════
+   COVER PAGE
+══════════════════════════════════════════ */
+.cover{
+  background:var(--navy);
+  min-height:11in;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  padding:1in 1in 0.8in;
+  text-align:center;
+}
+
+.cover-top-stripe{
+  position:absolute;
+  top:0;left:0;right:0;
+  height:5px;
+  background:var(--cyan);
+}
+
+.cover-logo{
+  width:110px;
+  height:auto;
+  margin-bottom:0.35in;
+  display:block;
+}
+
+.cover-org{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:34pt;
+  font-weight:800;
+  color:#fff;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+  line-height:1.1;
+  margin-bottom:0.08in;
+}
+
+.cover-division{
+  font-size:11pt;
+  font-weight:400;
+  color:rgba(255,255,255,0.45);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  margin-bottom:0.25in;
+}
+
+.cover-rule{
+  width:3.2in;
+  height:3px;
+  background:var(--cyan);
+  margin:0 auto 0.25in;
+}
+
+.cover-product{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:26pt;
+  font-weight:700;
+  color:var(--cyan);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-bottom:0.08in;
+}
+
+.cover-subtitle{
+  font-size:12pt;
+  font-weight:300;
+  color:rgba(255,255,255,0.55);
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  margin-bottom:0.55in;
+}
+
+.cover-pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  justify-content:center;
+  margin-bottom:0.65in;
+}
+
+.cover-pill{
+  background:rgba(41,182,213,0.12);
+  border:1px solid rgba(41,182,213,0.35);
+  border-radius:30px;
+  padding:7px 20px;
+  font-size:9pt;
+  color:var(--cyan);
+  font-weight:500;
+  letter-spacing:0.04em;
+}
+
+.cover-divider{
+  width:100%;
+  height:1px;
+  background:rgba(255,255,255,0.1);
+  margin-bottom:0.3in;
+}
+
+.cover-footer-grid{
+  display:flex;
+  gap:0.6in;
+  justify-content:center;
+  align-items:center;
+}
+
+.cover-stat{
+  text-align:center;
+}
+
+.cover-stat-val{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:30pt;
+  font-weight:700;
+  color:var(--cyan);
+  line-height:1;
+}
+
+.cover-stat-lbl{
+  font-size:7.5pt;
+  color:rgba(255,255,255,0.45);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  margin-top:4px;
+}
+
+.cover-stat-sep{
+  width:1px;
+  height:0.5in;
+  background:rgba(255,255,255,0.15);
+}
+
+.cover-bottom{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  padding:0.22in 0.5in;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+
+.cover-website{
+  font-size:10pt;
+  color:var(--cyan);
+  font-weight:600;
+  letter-spacing:0.06em;
+}
+
+.cover-date{
+  font-size:8.5pt;
+  color:rgba(255,255,255,0.35);
+  letter-spacing:0.04em;
+}
+
+.cover-corner-accent{
+  position:absolute;
+  bottom:0;right:0;
+  width:220px;height:220px;
+  border-top-left-radius:100%;
+  background:rgba(41,182,213,0.06);
+  pointer-events:none;
+}
+
+.cover-corner-accent2{
+  position:absolute;
+  top:0;left:0;
+  width:160px;height:160px;
+  border-bottom-right-radius:100%;
+  background:rgba(41,182,213,0.04);
+  pointer-events:none;
+}
+
+
+/* ══════════════════════════════════════════
+   SHARED PAGE CHROME
+══════════════════════════════════════════ */
+.page-header{
+  background:var(--navy);
+  padding:0.2in 0.5in;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+}
+
+.ph-logo{height:0.46in;width:auto}
+
+.ph-right{text-align:right}
+
+.ph-org{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13pt;
+  font-weight:700;
+  color:#fff;
+  letter-spacing:0.02em;
+}
+
+.ph-sub{
+  font-size:8pt;
+  color:var(--cyan);
+  margin-top:2px;
+  letter-spacing:0.04em;
+}
+
+.page-accent{
+  height:3px;
+  background:var(--cyan);
+  flex-shrink:0;
+}
+
+.page-body{
+  padding:0.3in 0.5in 0.25in;
+  flex:1;
+}
+
+.page-footer{
+  border-top:1px solid var(--gray-border);
+  padding:0.1in 0.5in;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+}
+
+.pf-text{font-size:7.5pt;color:var(--text-muted)}
+.pf-website{font-size:7.5pt;color:var(--cyan);font-weight:600;letter-spacing:0.04em}
+
+
+/* ══════════════════════════════════════════
+   TYPOGRAPHY & LAYOUT COMPONENTS
+══════════════════════════════════════════ */
+.section-eyebrow{
+  font-size:7pt;
+  font-weight:700;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--cyan);
+  margin-bottom:5px;
+}
+
+.section-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:21pt;
+  font-weight:700;
+  color:var(--navy);
+  line-height:1.1;
+  margin-bottom:0.1in;
+}
+
+.section-rule{
+  height:2px;
+  background:linear-gradient(90deg,var(--cyan) 0%,var(--cyan-muted) 55%,transparent 100%);
+  margin-bottom:0.18in;
+}
+
+.subsection-head{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13pt;
+  font-weight:700;
+  color:var(--navy);
+  margin:0.18in 0 0.1in;
+  padding-bottom:5px;
+  border-bottom:2px solid var(--gray-border);
+}
+
+.body-text{
+  font-size:9.5pt;
+  line-height:1.65;
+  color:var(--text);
+  margin-bottom:0.16in;
+}
+
+.body-text strong{color:var(--navy)}
+
+
+/* ── STAT ROW ────────────────────────────── */
+.stat-row{
+  display:flex;
+  gap:0.14in;
+  margin-bottom:0.22in;
+}
+
+.stat-box{
+  background:var(--cyan-light);
+  border:1px solid var(--cyan-muted);
+  border-radius:8px;
+  padding:0.14in 0.1in;
+  flex:1;
+  text-align:center;
+}
+
+.stat-val{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:28pt;
+  font-weight:700;
+  color:var(--navy);
+  line-height:1;
+}
+
+.stat-lbl{
+  font-size:7pt;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-top:4px;
+  font-weight:500;
+  line-height:1.3;
+}
+
+
+/* ── ORDER TYPES ─────────────────────────── */
+.order-types{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.14in;
+  margin-bottom:0.2in;
+}
+
+.order-type-card{
+  border-radius:8px;
+  padding:0.16in 0.18in;
+  border:1px solid var(--gray-border);
+}
+
+.order-type-card.maint{border-top:4px solid #d97706}
+.order-type-card.tech {border-top:4px solid var(--cyan)}
+
+.otc-label{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13pt;
+  font-weight:700;
+  margin-bottom:8px;
+}
+
+.otc-label.maint{color:#d97706}
+.otc-label.tech {color:var(--cyan-dark)}
+
+.otc-tags{display:flex;flex-wrap:wrap;gap:5px}
+
+.tag{
+  display:inline-block;
+  background:var(--gray-bg);
+  border:1px solid var(--gray-border);
+  border-radius:4px;
+  padding:3px 8px;
+  font-size:7.5pt;
+  color:var(--text-muted);
+  font-weight:500;
+}
+
+
+/* ── WORKFLOW PIPELINE ───────────────────── */
+.workflow{
+  display:flex;
+  align-items:stretch;
+  margin:0.18in 0 0.08in;
+  border-radius:6px;
+  overflow:hidden;
+  border:1px solid var(--gray-border);
+}
+
+.wf-step{
+  flex:1;
+  padding:0.1in 0.06in;
+  text-align:center;
+  background:var(--navy);
+  position:relative;
+  border-right:1px solid rgba(255,255,255,0.1);
+}
+
+.wf-step:last-child{border-right:none}
+
+.wf-step.approved{background:#065f46}
+.wf-step.assigned{background:var(--navy-mid)}
+.wf-step.inprogress{background:#1e3a5f}
+.wf-step.completed{background:var(--cyan-dark)}
+.wf-step.rejected{background:#7f1d1d}
+
+.wf-num{
+  font-size:6.5pt;
+  color:rgba(255,255,255,0.4);
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+
+.wf-label{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:9.5pt;
+  font-weight:700;
+  color:#fff;
+  line-height:1.2;
+  margin-top:3px;
+}
+
+.wf-arrow{
+  font-size:9pt;
+  color:rgba(255,255,255,0.3);
+  position:absolute;
+  right:-1px;top:50%;
+  transform:translateY(-50%);
+  z-index:1;
+}
+
+.workflow-note{
+  font-size:7.5pt;
+  color:var(--text-muted);
+  margin-bottom:0.18in;
+  font-style:italic;
+}
+
+
+/* ── PRIORITY BADGES ─────────────────────── */
+.priority-row{
+  display:flex;
+  gap:0.1in;
+  margin:0.1in 0 0.2in;
+}
+
+.pb{
+  flex:1;
+  text-align:center;
+  padding:10px 6px;
+  border-radius:6px;
+}
+
+.pb.urgent{background:#fef2f2;border:2px solid #dc2626;color:#dc2626}
+.pb.high  {background:#fffbeb;border:2px solid #d97706;color:#d97706}
+.pb.mid   {background:#eff6ff;border:2px solid #2563eb;color:#2563eb}
+.pb.low   {background:#f9fafb;border:2px solid #9ca3af;color:#6b7280}
+
+.pb-name{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12pt;
+  font-weight:700;
+  line-height:1;
+}
+
+.pb-desc{
+  font-size:6.5pt;
+  margin-top:4px;
+  opacity:0.75;
+  font-weight:500;
+  line-height:1.3;
+}
+
+
+/* ── ROLES TABLE ─────────────────────────── */
+table.rt{
+  width:100%;
+  border-collapse:collapse;
+  font-size:8.5pt;
+  margin-bottom:0.18in;
+}
+
+.rt thead th{
+  background:var(--navy);
+  color:#fff;
+  padding:8px 10px;
+  text-align:left;
+  font-size:7.5pt;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.07em;
+}
+
+.rt tbody td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--gray-border);
+  vertical-align:top;
+  line-height:1.45;
+}
+
+.rt tbody tr:nth-child(odd) td{background:#f9fafb}
+.rt tbody tr:nth-child(even) td{background:#fff}
+
+.role-badge{
+  display:inline-block;
+  background:var(--navy);
+  color:var(--cyan);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:9pt;
+  font-weight:700;
+  padding:2px 8px;
+  border-radius:4px;
+  letter-spacing:0.04em;
+  white-space:nowrap;
+}
+
+
+/* ── FEATURE GRID ────────────────────────── */
+.feature-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.12in;
+  margin-bottom:0.2in;
+}
+
+.fc{
+  border:1px solid var(--gray-border);
+  border-left:4px solid var(--cyan);
+  border-radius:0 8px 8px 0;
+  padding:0.12in 0.14in;
+  background:#fff;
+}
+
+.fc-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12pt;
+  font-weight:700;
+  color:var(--navy);
+  margin-bottom:4px;
+}
+
+.fc-body{
+  font-size:8pt;
+  color:var(--text-muted);
+  line-height:1.55;
+}
+
+
+/* ── REPORT CARDS ────────────────────────── */
+.report-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:0.11in;
+  margin-bottom:0.18in;
+}
+
+.rc{
+  background:var(--gray-bg);
+  border-radius:8px;
+  padding:0.13in 0.14in;
+  border-top:3px solid var(--cyan);
+}
+
+.rc-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:11pt;
+  font-weight:700;
+  color:var(--navy);
+  margin-bottom:4px;
+  line-height:1.2;
+}
+
+.rc-body{
+  font-size:7.5pt;
+  color:var(--text-muted);
+  line-height:1.5;
+}
+
+
+/* ── HIGHLIGHT NAVY BOX ──────────────────── */
+.navy-box{
+  background:var(--navy);
+  border-radius:8px;
+  padding:0.18in 0.22in;
+  margin-bottom:0.18in;
+}
+
+.navy-box-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:14pt;
+  font-weight:700;
+  color:var(--cyan);
+  margin-bottom:8px;
+}
+
+.navy-box-body{
+  font-size:9pt;
+  color:rgba(255,255,255,0.78);
+  line-height:1.65;
+}
+
+
+/* ── MOBILE GRID ─────────────────────────── */
+.mobile-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.2in;
+  margin-bottom:0.2in;
+}
+
+.mobile-col{}
+
+/* ── SECURITY GRID ───────────────────────── */
+.security-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0.12in;
+  margin-bottom:0.2in;
+}
+
+.sec-card{
+  border:1px solid var(--gray-border);
+  border-radius:8px;
+  padding:0.14in 0.16in;
+  background:var(--gray-bg);
+}
+
+.sec-card-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:11pt;
+  font-weight:700;
+  color:var(--navy);
+  margin-bottom:5px;
+}
+
+.sec-card-body{
+  font-size:8pt;
+  color:var(--text-muted);
+  line-height:1.55;
+}
+
+
+/* ── BULLET LIST ─────────────────────────── */
+.blist{list-style:none;padding:0;margin:0}
+
+.blist li{
+  padding:5px 0 5px 16px;
+  font-size:8.5pt;
+  color:var(--text);
+  border-bottom:1px solid #f0f4f8;
+  position:relative;
+  line-height:1.4;
+}
+
+.blist li:last-child{border-bottom:none}
+
+.blist li::before{
+  content:'';
+  position:absolute;
+  left:0;top:13px;
+  width:5px;height:5px;
+  background:var(--cyan);
+  border-radius:50%;
+}
+
+.blist li strong{color:var(--navy);font-weight:600}
+
+
+/* ── TWO-COL LAYOUT ──────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:0.22in}
+
+/* ── CALLOUT STRIP ───────────────────────── */
+.callout{
+  background:var(--cyan-light);
+  border:1px solid var(--cyan-muted);
+  border-left:4px solid var(--cyan);
+  border-radius:0 8px 8px 0;
+  padding:0.12in 0.16in;
+  margin-bottom:0.18in;
+  font-size:9pt;
+  color:var(--navy);
+  line-height:1.55;
+}
+
+.callout strong{font-weight:700;display:block;margin-bottom:3px}
+
+</style>
+</head>
+<body>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║           PAGE 1 — COVER                ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="cover">
+    <div class="cover-top-stripe"></div>
+    <div class="cover-corner-accent"></div>
+    <div class="cover-corner-accent2"></div>
+
+    <img src="images/logo.png" class="cover-logo" alt="Warrick County School Corporation Logo">
+
+    <div class="cover-org">Warrick County<br>School Corporation</div>
+    <div class="cover-division">Facilities &amp; Technology Division</div>
+
+    <div class="cover-rule"></div>
+
+    <div class="cover-product">Work Order Management System</div>
+    <div class="cover-subtitle">Software Capabilities &amp; Features Overview</div>
+
+    <div class="cover-pills">
+      <span class="cover-pill">Google SSO Authentication</span>
+      <span class="cover-pill">Role-Based Access Control</span>
+      <span class="cover-pill">Mobile PWA</span>
+      <span class="cover-pill">Automated Notifications</span>
+      <span class="cover-pill">PDF Reporting Suite</span>
+      <span class="cover-pill">District-Wide Coverage</span>
+    </div>
+
+    <div class="cover-divider"></div>
+
+    <div class="cover-footer-grid">
+      <div class="cover-stat">
+        <div class="cover-stat-val">9</div>
+        <div class="cover-stat-lbl">User Roles</div>
+      </div>
+      <div class="cover-stat-sep"></div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">2</div>
+        <div class="cover-stat-lbl">Order Types</div>
+      </div>
+      <div class="cover-stat-sep"></div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">20</div>
+        <div class="cover-stat-lbl">Buildings</div>
+      </div>
+      <div class="cover-stat-sep"></div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">6</div>
+        <div class="cover-stat-lbl">Report Types</div>
+      </div>
+      <div class="cover-stat-sep"></div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">4</div>
+        <div class="cover-stat-lbl">Priority Levels</div>
+      </div>
+    </div>
+
+    <div class="cover-bottom">
+      <div class="cover-website">wcscworkorder.com</div>
+      <div class="cover-date">Warrick County School Corporation &nbsp;·&nbsp; 300 E. Gum St., Boonville, IN 47601</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║       PAGE 2 — OVERVIEW & WORKFLOW      ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Platform Overview</div>
+    <div class="section-title">A Smarter Way to Manage District Work Orders</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">
+      The WCSC Work Order Management System is a purpose-built web application that centralizes and streamlines how Warrick County School Corporation staff submit, track, and resolve facilities and technology service requests. Built entirely around the district's existing <strong>Google Workspace accounts</strong>, the system requires no separate logins, no new passwords, and no installation — staff access it from any browser on any device.
+    </p>
+    <p class="body-text">
+      From a teacher submitting a broken projector request to a maintenance manager dispatching a crew to a plumbing issue, every interaction flows through a structured, role-based pipeline with automatic email notifications, photo documentation, and a full audit trail.
+    </p>
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val">9</div>
+        <div class="stat-lbl">Distinct User Roles</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">2</div>
+        <div class="stat-lbl">Work Order Types</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">20</div>
+        <div class="stat-lbl">Buildings Supported</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">4</div>
+        <div class="stat-lbl">Priority Levels</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">6</div>
+        <div class="stat-lbl">PDF Report Types</div>
+      </div>
+    </div>
+
+    <!-- Order Types -->
+    <div class="subsection-head">Work Order Types</div>
+    <div class="order-types">
+      <div class="order-type-card maint">
+        <div class="otc-label maint">Maintenance Orders</div>
+        <div class="otc-tags">
+          <span class="tag">HVAC</span>
+          <span class="tag">Plumbing</span>
+          <span class="tag">Electrical</span>
+          <span class="tag">Custodial</span>
+          <span class="tag">Grounds</span>
+          <span class="tag">Structural</span>
+          <span class="tag">Other</span>
+        </div>
+      </div>
+      <div class="order-type-card tech">
+        <div class="otc-label tech">Technology Orders</div>
+        <div class="otc-tags">
+          <span class="tag">Devices</span>
+          <span class="tag">Network</span>
+          <span class="tag">Software</span>
+          <span class="tag">Projectors</span>
+          <span class="tag">Printers</span>
+          <span class="tag">Infrastructure</span>
+          <span class="tag">Other</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow -->
+    <div class="subsection-head">Order Lifecycle — From Submission to Resolution</div>
+    <div class="workflow">
+      <div class="wf-step">
+        <div class="wf-num">Step 1</div>
+        <div class="wf-label">Submitted</div>
+      </div>
+      <div class="wf-step">
+        <div class="wf-num">Step 2</div>
+        <div class="wf-label">Pending Approval</div>
+      </div>
+      <div class="wf-step approved">
+        <div class="wf-num">Step 3</div>
+        <div class="wf-label">Approved</div>
+      </div>
+      <div class="wf-step assigned">
+        <div class="wf-num">Step 4</div>
+        <div class="wf-label">Workers Assigned</div>
+      </div>
+      <div class="wf-step inprogress">
+        <div class="wf-num">Step 5</div>
+        <div class="wf-label">In Progress</div>
+      </div>
+      <div class="wf-step completed">
+        <div class="wf-num">Step 6</div>
+        <div class="wf-label">Completed</div>
+      </div>
+    </div>
+    <div class="workflow-note">Email notifications are sent automatically at each stage transition. Orders may also be Rejected at the approval stage with notification to the submitter.</div>
+
+    <!-- Priority System -->
+    <div class="subsection-head">Priority System</div>
+    <div class="priority-row">
+      <div class="pb urgent">
+        <div class="pb-name">Urgent</div>
+        <div class="pb-desc">Safety risk or<br>building-critical failure</div>
+      </div>
+      <div class="pb high">
+        <div class="pb-name">High</div>
+        <div class="pb-desc">Significant impact<br>on operations</div>
+      </div>
+      <div class="pb mid">
+        <div class="pb-name">Mid</div>
+        <div class="pb-desc">Standard service<br>request</div>
+      </div>
+      <div class="pb low">
+        <div class="pb-name">Low</div>
+        <div class="pb-desc">Minor issue,<br>schedule when able</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Software Capabilities &amp; Features Overview</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║        PAGE 3 — ROLES & PERMISSIONS     ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Access Control</div>
+    <div class="section-title">Role-Based Permissions</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">
+      Every user account is assigned one of nine roles that precisely control what they can see and do within the system. Roles are managed by an administrator and take effect at next login — no configuration required by the user.
+    </p>
+
+    <table class="rt">
+      <thead>
+        <tr>
+          <th style="width:80px">Role Code</th>
+          <th style="width:170px">Title</th>
+          <th>Capabilities &amp; Scope</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="role-badge">A</span></td>
+          <td><strong>Administrator</strong></td>
+          <td>Full system access. Manages all users, views and administers all orders of both types, accesses all reports, configures role assignments and building associations.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MM</span></td>
+          <td><strong>Maintenance Manager</strong></td>
+          <td>Approves and rejects maintenance orders, assigns maintenance workers, marks orders complete, generates maintenance-scoped PDF reports. Sees all maintenance orders district-wide.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MT</span></td>
+          <td><strong>Technology Manager</strong></td>
+          <td>Approves and rejects technology orders, assigns building technicians, marks orders complete, generates technology-scoped PDF reports. Sees all technology orders district-wide.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BP</span></td>
+          <td><strong>Building Principal</strong></td>
+          <td>Views all orders submitted from their assigned building. Approves or rejects orders from their building before they route to the appropriate manager.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BT</span></td>
+          <td><strong>Building Technician</strong></td>
+          <td>Receives technology order assignments. Views and works orders assigned to them across their associated buildings. Mobile-optimized experience available.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BC</span></td>
+          <td><strong>Building Custodian</strong></td>
+          <td>Receives maintenance order assignments. Views only their personally assigned orders. Can add notes, attach photos, and mark orders complete from the field.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BM</span></td>
+          <td><strong>Building Maintenance</strong></td>
+          <td>Receives maintenance order assignments. Equivalent capabilities to Building Custodian — notes, photos, and completion from the field via mobile interface.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MW</span></td>
+          <td><strong>Maintenance Worker</strong></td>
+          <td>District-wide maintenance worker. Views only assigned orders. Adds notes and photos from the field, marks work complete via mobile. Not building-scoped.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">U</span></td>
+          <td><strong>General User</strong></td>
+          <td>Teachers, office staff, and all other district employees. Submits maintenance and technology work orders. Views only their own submitted orders and their current status.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Building-Scoped Roles</strong>
+      Building Principals (BP) and Building Technicians (BT) are associated with one or more specific buildings at the time of account creation. Their view of the system is automatically filtered to those buildings — they never see work orders from other sites.
+    </div>
+
+    <div class="callout">
+      <strong>Account Activation &amp; Deactivation</strong>
+      Administrators can activate or deactivate any user account at any time without deleting it. Deactivated users lose access immediately upon their next login attempt while their historical data and assignments remain intact in the system.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Software Capabilities &amp; Features Overview</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║         PAGE 4 — CORE FEATURES          ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Platform Capabilities</div>
+    <div class="section-title">Core Features</div>
+    <div class="section-rule"></div>
+
+    <div class="feature-grid">
+
+      <div class="fc">
+        <div class="fc-title">Google Single Sign-On</div>
+        <div class="fc-body">Staff sign in with their existing district Google Workspace accounts — no separate usernames or passwords. Access is locked to the <em>@warrick.k12.in.us</em> domain, preventing unauthorized access by default.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Intelligent Order Submission</div>
+        <div class="fc-body">Guided submission form with required fields for order type, building, room number, problem category, description, priority level, and optional time-window scheduling. Users cannot submit incomplete orders.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Multi-Photo Uploads</div>
+        <div class="fc-body">Work orders support multiple photo attachments at submission time. Field workers can also add photos while updating in-progress orders. All images are stored securely and viewable in the order detail page.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Automated Email Notifications</div>
+        <div class="fc-body">The system automatically sends email alerts at each workflow stage: submission confirmation to the requester, approval/rejection notices, assignment notifications to workers, and completion confirmation — all without manual action.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Worker Assignment System</div>
+        <div class="fc-body">Managers can assign one or more workers to a single order from a filtered list of eligible staff. Multiple assignments are supported when a job requires a crew. Assigned workers receive immediate email notification and the order appears on their dashboard.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Live Notes &amp; Activity Log</div>
+        <div class="fc-body">Any authorized user can append timestamped notes to an order at any point in its lifecycle. Notes are displayed in chronological order on the detail page, creating a running activity log for every work order.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Print-Ready Work Orders</div>
+        <div class="fc-body">Every work order has a dedicated print view that formats all order details, notes, photos, and assignment history into a clean, professional document ready for physical filing or distribution without extra formatting.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Building &amp; Room Routing</div>
+        <div class="fc-body">Orders are tagged with building code and room number at submission. The system uses this to automatically route visibility — principals see their building, technicians see their sites, and district-wide staff see everything.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Real-Time Notification Bell</div>
+        <div class="fc-body">An in-app notification bell alerts users to new activity on their orders without requiring them to refresh the page — status changes, new assignments, and approvals appear as unread badge counts in the navigation bar.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Searchable Order Numbers</div>
+        <div class="fc-body">Every submitted order receives a unique, formatted work order number (e.g., WO-000042) that can be used to directly navigate to any order via URL. Numbers are sequential, permanent, and consistent across printed and digital records.</div>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Software Capabilities &amp; Features Overview</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║         PAGE 5 — REPORTING SUITE        ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Analytics &amp; Documentation</div>
+    <div class="section-title">PDF Reporting Suite</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">
+      Administrators, Maintenance Managers, and Technology Managers have access to a built-in reporting engine that generates branded, print-quality PDF documents on demand. All reports are scoped to the generating user's role — a Maintenance Manager sees only maintenance data, a Technology Manager only technology data, and an Administrator sees everything.
+    </p>
+
+    <div class="report-grid">
+      <div class="rc">
+        <div class="rc-title">Active Maintenance Orders</div>
+        <div class="rc-body">A complete list of all open maintenance work orders, sorted by priority then age. Includes building, room, problem type, assigned workers, status, and days open.</div>
+      </div>
+      <div class="rc">
+        <div class="rc-title">Active Technology Orders</div>
+        <div class="rc-body">Equivalent report for all open technology service requests. Displays current handler, assignment status, and time open for each unresolved ticket.</div>
+      </div>
+      <div class="rc">
+        <div class="rc-title">Aging Report</div>
+        <div class="rc-body">Identifies orders that have been open beyond a configurable threshold (default: 14 days). Color-coded age indicators highlight items at risk of falling through the cracks.</div>
+      </div>
+      <div class="rc">
+        <div class="rc-title">Workload Distribution</div>
+        <div class="rc-body">Shows how completed orders were distributed across all workers over a configurable time period (30, 60, or 90 days / 1 year). Supports accountability and workload balancing.</div>
+      </div>
+      <div class="rc">
+        <div class="rc-title">Completed Orders by Staff</div>
+        <div class="rc-body">Generates a history of all orders completed by a selected employee over a chosen period. Useful for performance reviews, documentation, and tracking individual output.</div>
+      </div>
+      <div class="rc">
+        <div class="rc-title">Current Staff Workload</div>
+        <div class="rc-body">Multi-employee snapshot of all currently open, assigned orders. Supports side-by-side comparison of active workloads across an entire team to help managers allocate resources.</div>
+      </div>
+    </div>
+
+    <div class="navy-box">
+      <div class="navy-box-title">Report Format &amp; Branding</div>
+      <div class="navy-box-body">
+        Every generated report is a fully formatted PDF document branded with the Warrick County School Corporation logo, organization name, and contact information in the header. Reports include a filter summary line, generation timestamp, the generating user's name, and a footer on every page. All documents are generated instantly and download directly to the user's device — no external printing service or third-party software required.
+      </div>
+    </div>
+
+    <div class="subsection-head">Report Access by Role</div>
+    <table class="rt">
+      <thead>
+        <tr>
+          <th>Report</th>
+          <th style="text-align:center;width:80px">Admin (A)</th>
+          <th style="text-align:center;width:130px">Maint. Manager (MM)</th>
+          <th style="text-align:center;width:130px">Tech Manager (MT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Active Maintenance Orders</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓</td>
+          <td style="text-align:center;color:#9ca3af">—</td>
+        </tr>
+        <tr>
+          <td>Active Technology Orders</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓</td>
+          <td style="text-align:center;color:#9ca3af">—</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓</td>
+        </tr>
+        <tr>
+          <td>Aging Report</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Both types</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Maint. only</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Tech only</td>
+        </tr>
+        <tr>
+          <td>Workload Distribution</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ All staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Maint. staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Tech staff</td>
+        </tr>
+        <tr>
+          <td>Completed Orders by Staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ All staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Maint. staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Tech staff</td>
+        </tr>
+        <tr>
+          <td>Current Staff Workload</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ All staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Maint. staff</td>
+          <td style="text-align:center;color:#065f46;font-weight:700">✓ Tech staff</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Software Capabilities &amp; Features Overview</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║       PAGE 6 — MOBILE & SECURITY        ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Field &amp; Remote Access</div>
+    <div class="section-title">Mobile Experience</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">
+      Field staff — custodians, maintenance workers, and building technicians — work in the field, not at a desk. The system includes a dedicated mobile interface that automatically activates when these roles access the system from a phone or tablet.
+    </p>
+
+    <div class="two-col" style="margin-bottom:0.2in">
+      <div>
+        <div class="subsection-head" style="margin-top:0">Progressive Web App (PWA)</div>
+        <ul class="blist">
+          <li><strong>Install to home screen</strong> on iOS and Android devices — works like a native app, no App Store required</li>
+          <li><strong>Standalone display</strong> with no browser chrome — full-screen experience once installed</li>
+          <li><strong>Automatic redirect</strong> — field-role users on mobile devices go directly to the mobile dashboard without any extra steps</li>
+          <li><strong>Desktop escape</strong> — a "Switch to Desktop" option is always available for field workers who need full access</li>
+          <li><strong>District branding</strong> — WCSC gear icon appears on the user's home screen after installation</li>
+        </ul>
+      </div>
+      <div>
+        <div class="subsection-head" style="margin-top:0">Mobile Dashboard Features</div>
+        <ul class="blist">
+          <li><strong>Priority-sorted card view</strong> — Urgent orders surface first, then High, Mid, Low; within priority, oldest orders appear first</li>
+          <li><strong>Status filtering</strong> — toggle between In Progress, Approved, and Completed views with a single tap</li>
+          <li><strong>In-field notes</strong> — add text notes to an order from the job site in real time</li>
+          <li><strong>Photo upload from device</strong> — attach photos directly from the camera or photo library</li>
+          <li><strong>Mark complete</strong> — field workers can mark their assigned orders complete from the mobile view; managers confirm from the desktop</li>
+          <li><strong>Role-aware scope</strong> — workers see only their assigned orders; Maintenance Manager sees all open maintenance orders</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="navy-box" style="margin-bottom:0.25in">
+      <div class="navy-box-title">No App Store. No IT Deployment. No Updates to Manage.</div>
+      <div class="navy-box-body">Because the mobile experience is a Progressive Web App delivered through the browser, there is nothing to install through the App Store or Google Play. When the system is updated, every user gets the new version automatically the next time they open it — no forced update prompts, no device management configuration, and no MDM policy changes required.</div>
+    </div>
+
+    <!-- Security -->
+    <div class="section-eyebrow" style="margin-top:0.05in">Access &amp; Data Protection</div>
+    <div class="section-title">Security Architecture</div>
+    <div class="section-rule"></div>
+
+    <div class="security-grid">
+      <div class="sec-card">
+        <div class="sec-card-title">Google Workspace Authentication</div>
+        <div class="sec-card-body">All login is handled by Google's OAuth 2.0 infrastructure. The system never stores district passwords. If a user's Google account is suspended by the district, they immediately lose system access without any additional action required from the administrator.</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-card-title">Domain-Locked Access</div>
+        <div class="sec-card-body">The system is hard-coded to accept only <em>@warrick.k12.in.us</em> email addresses. Attempts to authenticate with personal Gmail accounts or addresses from any other domain are rejected at the login stage, before any session is created.</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-card-title">Role-Based Data Isolation</div>
+        <div class="sec-card-body">Every database query is filtered by the authenticated user's role and building assignment. A general user cannot access the URL of another user's work order. A principal cannot see another building's orders. Access is enforced server-side on every page load, not just on navigation.</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-card-title">Session Management</div>
+        <div class="sec-card-body">Sessions are validated on every page request. Unauthenticated requests are immediately redirected to the login screen. Role mismatches on restricted pages (e.g., a general user attempting to access the admin panel) redirect rather than expose an error or partial content.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; 300 E. Gum St., Boonville, IN 47601 &nbsp;|&nbsp; 812-897-6588</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+</body>
+</html>

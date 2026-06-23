@@ -28,9 +28,8 @@ $user_building = $_SESSION['user_building'] ?? null;
 
 // ── Mobile redirect for field roles ──────────────────────────
 $_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
-if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','BP','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
-    $wo_param = isset($_GET['wo']) ? '?wo=' . urlencode($_GET['wo']) : '';
-    header('Location: mobile/' . ($wo_param ? 'order_detail.php' . $wo_param : 'dashboard.php'));
+if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
+    header('Location: mobile/dashboard.php');
     exit;
 }
 
@@ -376,6 +375,14 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .empty-state{text-align:center;padding:52px 20px;color:#aab0bb}
 .empty-state i{font-size:42px;color:#d0d5dd;display:block;margin-bottom:12px}
 
+/* ── DESIGN PREVIEW C: Banded rows with strong header ── */
+.wo-table-wrap{border:1px solid #c8d4de;box-shadow:0 2px 8px rgba(0,0,0,0.07)}
+.wo-table th{background:#edf5f8;border-bottom:3px solid var(--cyan);padding:13px 10px;font-size:11px;letter-spacing:.04em;color:#1a1a2e;font-weight:800}
+.wo-table td{padding:14px 10px}
+.wo-table tbody tr:nth-child(odd) td{background:#fff}
+.wo-table tbody tr:nth-child(even) td{background:#f6fbfd}
+.wo-table tbody tr:hover td{background:#edf7fb!important}
+
 /* ── MODAL OVERLAY ── */
 .modal-overlay{
     display:none;
@@ -673,6 +680,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <!-- Welcome -->
     <div class="welcome-bar">
+        <p style="display:inline-block;font-size:11px;font-weight:700;color:#fff;background:var(--cyan);padding:3px 12px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">Design C — Banded Rows / Strong Header</p>
         <h1>Welcome back, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?> 👋</h1>
         <p>Submit a new work order or check the status of your existing requests.</p>
     </div>

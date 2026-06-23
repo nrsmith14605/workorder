@@ -13,7 +13,7 @@ $user_given    = $user['given_name'] ?? '';
 $user_pic      = $user['picture'] ?? '';
 $user_role     = $_SESSION['user_role'] ?? 'U';
 
-if (!in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A'])) {
+if (!in_array($user_role, ['MW','BC','BM','MM','BT','BP','U','MT','A'])) {
     header('Location: ../main.php');
     exit;
 }
@@ -24,6 +24,7 @@ $role_labels = [
     'BM' => 'Building Maintenance',
     'MM' => 'Maintenance Manager',
     'BT' => 'Building Technician',
+    'BP' => 'Building Principal',
     'MT' => 'Technology Manager',
     'A'  => 'Administrator',
     'U'  => 'User',
@@ -114,6 +115,32 @@ if ($user_role === 'MM') {
         $stmt2->close();
     }
 
+} elseif ($user_role === 'BP') {
+    if ($user_building) {
+        $stmt = $db->prepare(
+            "SELECT *, NULL AS assigned_date FROM orders
+             WHERE building = ? AND current_handler = 'BP'
+               AND status IN ('Pending Approval','Approved')
+             ORDER BY FIELD(priority,'Urgent','High','Mid','Low'), created_at ASC"
+        );
+        $stmt->bind_param('s', $user_building);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) $orders[] = $row;
+        $stmt->close();
+
+        $stmt2 = $db->prepare(
+            "SELECT *, NULL AS assigned_date FROM orders
+             WHERE building = ? AND status IN ('Completed','Rejected')
+             ORDER BY created_at DESC LIMIT 50"
+        );
+        $stmt2->bind_param('s', $user_building);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        while ($row = $res2->fetch_assoc()) $completed[] = $row;
+        $stmt2->close();
+    }
+
 } elseif ($user_role === 'U') {
     $stmt = $db->prepare(
         "SELECT *, NULL AS assigned_date FROM orders
@@ -186,38 +213,45 @@ function render_card(array $o, array $pri_colors, bool $is_completed = false): v
     $date_val = $o['assigned_date'] ?? $o['created_at'] ?? '';
     $date_fmt = $date_val ? date('M j', strtotime($date_val)) : '—';
     $opacity  = $is_completed ? 'opacity:.55' : '';
-    ?>
-    <a href="order_detail.php?wo=<?= urlencode($wo_num) ?>" class="card" style="<?= $opacity ?>">
-        <div class="card-bar" style="background:<?= $pc['bar'] ?>"></div>
-        <div class="card-body">
-            <div class="card-top">
-                <span class="wo-num"><?= $wo_num ?></span>
-                <span class="pri-badge" style="background:<?= $pc['bg'] ?>;color:<?= $pc['color'] ?>"><?= htmlspecialchars($pri) ?></span>
-            </div>
-            <div class="card-location">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <?= $building ?> &mdash; <?= $room ?>
-            </div>
-            <div class="card-problem"><?= $problem ?></div>
-            <div class="card-desc"><?= $desc ?></div>
-            <div class="card-footer">
-                <?php
-                $s_map = [
-                    'Pending Approval' => ['class'=>'pending',    'label'=>'Pending'],
-                    'Approved'         => ['class'=>'approved',   'label'=>'Approved'],
-                    'In Progress'      => ['class'=>'inprogress', 'label'=>'In Progress'],
-                    'Completed'        => ['class'=>'completed',  'label'=>'Completed'],
-                    'Rejected'         => ['class'=>'rejected',   'label'=>'Rejected'],
-                ];
-                $s_key = $o['status'] ?? 'In Progress';
-                $sd    = $s_map[$s_key] ?? ['class'=>'inprogress','label'=>$s_key];
-                ?>
-                <span class="card-status <?= $sd['class'] ?>"><?= $sd['label'] ?></span>
-                <span class="card-date"><?= $date_fmt ?></span>
-            </div>
-        </div>
-    </a>
-    <?php
+    $card_html = '<a href="order_detail.php?wo=' . urlencode($wo_num) . '" class="card" style="' . $opacity . '">'
+        . '<div class="card-bar" style="background:' . $pc['bar'] . '"></div>'
+        . '<div class="card-body">'
+        . '<div class="card-top">'
+        . '<span class="wo-num">' . $wo_num . '</span>'
+        . '<span class="pri-badge" style="background:' . $pc['bg'] . ';color:' . $pc['color'] . '">' . htmlspecialchars($pri) . '</span>'
+        . '</div>'
+        . '<div class="card-location">'
+        . '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+        . $building . ' &mdash; ' . $room
+        . '</div>'
+        . '<div class="card-problem">' . $problem . '</div>'
+        . '<div class="card-desc">' . $desc . '</div>';
+
+    $s_map = [
+        'Pending Approval' => ['class'=>'pending',    'label'=>'Pending'],
+        'Approved'         => ['class'=>'approved',   'label'=>'Approved'],
+        'In Progress'      => ['class'=>'inprogress', 'label'=>'In Progress'],
+        'Completed'        => ['class'=>'completed',  'label'=>'Completed'],
+        'Rejected'         => ['class'=>'rejected',   'label'=>'Rejected'],
+    ];
+    $s_key = $o['status'] ?? 'In Progress';
+    $sd    = $s_map[$s_key] ?? ['class'=>'inprogress','label'=>$s_key];
+
+    $card_html .= '<div class="card-footer">'
+        . '<span class="card-status ' . $sd['class'] . '">' . $sd['label'] . '</span>'
+        . '<span class="card-date">' . $date_fmt . '</span>'
+        . '</div></div></a>';
+
+    if ($is_completed) {
+        echo $card_html;
+    } else {
+        echo '<div class="card-wrap" data-id="' . (int)$o['id'] . '">'
+            . $card_html
+            . '<button class="star-btn" type="button" aria-label="Star this order">'
+            . '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">'
+            . '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
+            . '</svg></button></div>';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -231,9 +265,13 @@ function render_card(array $o, array $pri_colors, bool $is_completed = false): v
 <meta name="apple-mobile-web-app-title" content="WCSC Work Orders">
 <meta name="theme-color" content="#0B1F2E">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.php?size=180">
+<link rel="apple-touch-icon" sizes="167x167" href="icon.php?size=167">
+<link rel="apple-touch-icon" sizes="152x152" href="icon.php?size=152">
+<link rel="apple-touch-icon" sizes="120x120" href="icon.php?size=120">
 <title>WCSC Work Orders</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script>(function(){var f=localStorage.getItem('wcsc_fz')||'12';var m={xs:'8',sm:'8',md:'10',lg:'12',xl:'14'};if(m[f]){f=m[f];localStorage.setItem('wcsc_fz',f);}document.documentElement.classList.add('font-'+f)})();</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -266,13 +304,10 @@ body{
 }
 .topbar-left{display:flex;align-items:center;gap:10px}
 .topbar-icon{
-    width:34px;height:34px;
-    background:var(--cyan);
-    border-radius:9px;
     display:flex;align-items:center;justify-content:center;
     flex-shrink:0;
 }
-.topbar-icon svg{display:block}
+.topbar-icon img{height:32px;width:auto;display:block}
 .topbar-title{
     font-family:'Barlow Condensed',sans-serif;
     font-size:17px;font-weight:700;
@@ -332,6 +367,13 @@ body{
 
 /* ── MAIN CONTENT ── */
 .main{padding:16px 14px 8px}
+
+/* ── NOTIF BANNER ── */
+.notif-banner{display:flex;align-items:center;gap:10px;background:#1a3a56;border:1px solid #29b6d5;border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.notif-banner svg{flex-shrink:0;color:#29b6d5}
+.notif-banner-text{flex:1;font-size:13px;font-weight:600;color:#e2e8f0;line-height:1.4}
+.notif-banner-text span{display:block;font-size:11px;font-weight:400;color:#94a3b8;margin-top:2px}
+.notif-banner-close{padding:4px;color:#94a3b8;background:none;border:none;font-size:18px;line-height:1;cursor:pointer}
 
 /* ── GREETING ── */
 .greeting{margin-bottom:14px}
@@ -410,6 +452,22 @@ body{
 .card-status.rejected{background:#fee2e2;color:#991b1b}
 .card-date{font-size:11px;color:#aab0bb}
 
+/* ── STAR BUTTON ── */
+.card-wrap{position:relative;margin-bottom:10px}
+.card-wrap>.card{margin-bottom:0}
+.card-wrap>.card .card-body{padding-right:40px}
+.star-btn{
+    position:absolute;top:10px;right:10px;
+    background:none;border:none;padding:6px;
+    color:#d0d5dd;cursor:pointer;line-height:1;z-index:1;
+    border-radius:6px;
+    -webkit-tap-highlight-color:transparent;
+    transition:color .15s,transform .1s;
+}
+.star-btn:active{transform:scale(.8)}
+.star-btn.starred{color:#f59e0b}
+.star-btn.starred svg{fill:#f59e0b}
+
 /* ── EMPTY STATE ── */
 .empty{
     text-align:center;padding:52px 20px 32px;color:#aab0bb;
@@ -440,6 +498,75 @@ body{
     font-size:12px;color:#aab0bb;
 }
 .desktop-link a{color:#aab0bb;text-decoration:underline}
+
+/* ── FONT SIZE PICKER ── */
+.sheet-fz-row{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;cursor:default}
+.sheet-fz-row:active{background:transparent}
+.fz-label{display:flex;align-items:center;gap:12px;font-size:15px;color:#1a1a2e}
+.fz-label svg{flex-shrink:0;color:#6b7a8d}
+.fz-picker{display:flex;gap:4px}
+.fz-btn{
+    width:38px;height:32px;border-radius:8px;
+    border:1.5px solid #e0e4ea;background:transparent;
+    font-family:'Barlow',sans-serif;font-weight:700;color:#6b7a8d;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+    transition:all .12s;
+}
+.fz-btn[data-size="8"]{font-size:9px}
+.fz-btn[data-size="10"]{font-size:11px}
+.fz-btn[data-size="12"]{font-size:13px}
+.fz-btn[data-size="14"]{font-size:15px}
+.fz-btn[data-size="16"]{font-size:17px}
+.fz-btn.fz-active{background:var(--cyan);border-color:var(--cyan);color:#fff}
+
+/* ── FONT SIZE OVERRIDES ── */
+html.font-8 .greeting h1{font-size:24px}
+html.font-8 .greeting p{font-size:13px}
+html.font-8 .wo-num{font-size:15px}
+html.font-8 .card-location{font-size:13px}
+html.font-8 .card-problem{font-size:12px}
+html.font-8 .card-desc{font-size:12px}
+html.font-8 .card-date{font-size:11px}
+html.font-8 .stat-label{font-size:11px}
+html.font-8 .section-label{font-size:11px}
+html.font-10 .greeting h1{font-size:28px}
+html.font-10 .greeting p{font-size:15px}
+html.font-10 .wo-num{font-size:17px}
+html.font-10 .card-location{font-size:15px}
+html.font-10 .card-problem{font-size:14px}
+html.font-10 .card-desc{font-size:14px}
+html.font-10 .card-date{font-size:13px}
+html.font-10 .stat-label{font-size:13px}
+html.font-10 .section-label{font-size:13px}
+html.font-12 .greeting h1{font-size:32px}
+html.font-12 .greeting p{font-size:17px}
+html.font-12 .wo-num{font-size:19px}
+html.font-12 .card-location{font-size:17px}
+html.font-12 .card-problem{font-size:16px}
+html.font-12 .card-desc{font-size:16px}
+html.font-12 .card-date{font-size:15px}
+html.font-12 .stat-label{font-size:15px}
+html.font-12 .section-label{font-size:15px}
+html.font-14 .greeting h1{font-size:36px}
+html.font-14 .greeting p{font-size:19px}
+html.font-14 .wo-num{font-size:21px}
+html.font-14 .card-location{font-size:19px}
+html.font-14 .card-problem{font-size:18px}
+html.font-14 .card-desc{font-size:18px}
+html.font-14 .card-date{font-size:17px}
+html.font-14 .stat-label{font-size:17px}
+html.font-14 .section-label{font-size:17px}
+html.font-16 .greeting h1{font-size:40px}
+html.font-16 .greeting p{font-size:21px}
+html.font-16 .wo-num{font-size:23px}
+html.font-16 .card-location{font-size:21px}
+html.font-16 .card-problem{font-size:20px}
+html.font-16 .card-desc{font-size:20px}
+html.font-16 .card-date{font-size:19px}
+html.font-16 .stat-label{font-size:19px}
+html.font-16 .section-label{font-size:19px}
 </style>
 </head>
 <body>
@@ -448,10 +575,7 @@ body{
 <header class="topbar">
     <div class="topbar-left">
         <div class="topbar-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 2a4 4 0 0 1 4 4c0 .93-.32 1.78-.84 2.46L20 14h-3v4a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-4H4L8.84 8.46A4 4 0 0 1 12 2z"/>
-                <circle cx="12" cy="6" r="1.5" fill="#fff" stroke="none"/>
-            </svg>
+            <img src="../images/top_logo.php" alt="WCSC logo">
         </div>
         <div class="topbar-title">WCSC <span>Work Orders</span></div>
     </div>
@@ -481,6 +605,19 @@ body{
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         Switch to Desktop Site
     </a>
+    <div class="sheet-fz-row">
+        <div class="fz-label">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            Text Size
+        </div>
+        <div class="fz-picker">
+            <button class="fz-btn" data-size="8">A--</button>
+            <button class="fz-btn" data-size="10">A-</button>
+            <button class="fz-btn" data-size="12">A</button>
+            <button class="fz-btn" data-size="14">A+</button>
+            <button class="fz-btn" data-size="16">A++</button>
+        </div>
+    </div>
     <hr class="sheet-divider">
     <a href="../logout.php" class="sheet-item danger">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -490,6 +627,15 @@ body{
 
 <!-- MAIN -->
 <main class="main">
+
+    <div class="notif-banner" id="notif-banner" style="display:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-banner-text">
+            Enable push notifications
+            <span>Tap to get alerts when work orders need your attention</span>
+        </div>
+        <button class="notif-banner-close" id="notif-banner-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
 
     <div class="greeting">
         <h1>Hi, <?= htmlspecialchars($user_given ?: explode(' ', $user_name)[0]) ?></h1>
@@ -527,7 +673,9 @@ body{
         <p>No active orders right now.</p>
     </div>
     <?php else: ?>
+    <div id="active-orders-container">
         <?php foreach ($orders as $o): render_card($o, $pri_colors, false); endforeach; ?>
+    </div>
     <?php endif; ?>
 
     <!-- Completed toggle -->
@@ -573,6 +721,23 @@ profileSheet.addEventListener('touchend', function(e){
     if (e.changedTouches[0].clientY - _sy > 60) closeSheet();
 }, {passive:true});
 
+// Font size picker
+var fzBtns = document.querySelectorAll('.fz-btn');
+(function(){
+    var cur = localStorage.getItem('wcsc_fz') || '12';
+    fzBtns.forEach(function(b){ if(b.dataset.size === cur) b.classList.add('fz-active'); });
+})();
+fzBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+        var size = this.dataset.size;
+        localStorage.setItem('wcsc_fz', size);
+        document.documentElement.classList.remove('font-8','font-10','font-12','font-14','font-16');
+        document.documentElement.classList.add('font-' + size);
+        fzBtns.forEach(function(b){ b.classList.remove('fz-active'); });
+        this.classList.add('fz-active');
+    });
+});
+
 // Completed toggle
 const toggleBtn  = document.getElementById('toggle-completed-btn');
 const toggleIcon = document.getElementById('toggle-icon');
@@ -589,6 +754,104 @@ if (toggleBtn) {
         }
     });
 }
+
+// ── Push notifications ────────────────────────────────────────
+(function() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    var VAPID_PUBLIC_KEY = '<?= defined('VAPID_PUBLIC_KEY') ? addslashes(VAPID_PUBLIC_KEY) : '' ?>';
+    if (!VAPID_PUBLIC_KEY) return;
+
+    var banner  = document.getElementById('notif-banner');
+    var dismiss = document.getElementById('notif-banner-dismiss');
+
+    function urlBase64ToUint8Array(base64String) {
+        var padding = '='.repeat((4 - base64String.length % 4) % 4);
+        var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        var raw     = atob(base64);
+        var arr     = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        return arr;
+    }
+
+    function subscribe(reg) {
+        return reg.pushManager.getSubscription().then(function(existing) {
+            if (existing) return existing;
+            return reg.pushManager.subscribe({
+                userVisibleOnly:      true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }).then(function(sub) {
+            if (!sub) return;
+            fetch('/workorder/mobile/push_subscribe.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(sub)
+            });
+            if (banner) banner.style.display = 'none';
+        });
+    }
+
+    navigator.serviceWorker.register('/workorder/mobile/sw.js').then(function(reg) {
+        var permission = Notification.permission;
+
+        if (permission === 'granted') {
+            // Already allowed — subscribe silently
+            subscribe(reg);
+        } else if (permission === 'default' && !localStorage.getItem('notif_dismissed')) {
+            // Show banner; request permission only on tap
+            if (banner) {
+                banner.style.display = 'flex';
+                banner.addEventListener('click', function(e) {
+                    if (e.target === dismiss || dismiss.contains(e.target)) return;
+                    Notification.requestPermission().then(function(result) {
+                        if (result === 'granted') subscribe(reg);
+                        banner.style.display = 'none';
+                    });
+                });
+                dismiss.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    banner.style.display = 'none';
+                    localStorage.setItem('notif_dismissed', '1');
+                });
+            }
+        }
+    }).catch(function(err) { console.warn('Push setup:', err); });
+})();
+
+// ── Starred orders ────────────────────────────────────────────
+(function() {
+    var STAR_KEY = 'wcsc_stars_<?= addslashes($user_email) ?>';
+    var starred  = new Set(JSON.parse(localStorage.getItem(STAR_KEY) || '[]').map(String));
+    var container = document.getElementById('active-orders-container');
+    if (!container) return;
+
+    function applyAndSort() {
+        var wraps = Array.from(container.querySelectorAll('.card-wrap'));
+        wraps.forEach(function(w) {
+            var btn = w.querySelector('.star-btn');
+            var on  = starred.has(w.dataset.id);
+            btn.classList.toggle('starred', on);
+            btn.setAttribute('aria-label', on ? 'Unstar this order' : 'Star this order');
+        });
+        var s = wraps.filter(function(w) { return  starred.has(w.dataset.id); });
+        var u = wraps.filter(function(w) { return !starred.has(w.dataset.id); });
+        s.concat(u).forEach(function(w) { container.appendChild(w); });
+    }
+
+    container.addEventListener('click', function(e) {
+        var btn = e.target.closest('.star-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var id = btn.closest('.card-wrap').dataset.id;
+        if (starred.has(id)) starred.delete(id); else starred.add(id);
+        localStorage.setItem(STAR_KEY, JSON.stringify(Array.from(starred)));
+        applyAndSort();
+    });
+
+    applyAndSort();
+})();
 </script>
 </body>
 </html>

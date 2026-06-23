@@ -28,9 +28,8 @@ $user_building = $_SESSION['user_building'] ?? null;
 
 // ── Mobile redirect for field roles ──────────────────────────
 $_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
-if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','BP','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
-    $wo_param = isset($_GET['wo']) ? '?wo=' . urlencode($_GET['wo']) : '';
-    header('Location: mobile/' . ($wo_param ? 'order_detail.php' . $wo_param : 'dashboard.php'));
+if ($_is_mobile && in_array($user_role, ['MW','BC','BM','MM','BT','U','MT','A']) && ($_GET['desktop'] ?? '') !== '1') {
+    header('Location: mobile/dashboard.php');
     exit;
 }
 
@@ -341,7 +340,7 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .filter-tab.active{background:var(--cyan);color:#fff;border-color:var(--cyan)}
 
 /* ── WO TABLE ── */
-.wo-table-wrap{background:#fff;border:1px solid #e8ecf0;border-radius:12px;overflow:hidden}
+.wo-table-wrap{background:#fff;border:1px solid #e8ecf0;border-radius:0 0 12px 12px;overflow:hidden}
 .wo-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 .wo-table th{padding:9px 8px;text-align:left;font-weight:700;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6b7a8d;background:#f8f9fa;border-bottom:1px solid #e8ecf0;white-space:nowrap;overflow:hidden}
 .wo-table td{padding:11px 8px;border-bottom:1px solid #f0f4f8;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -375,6 +374,10 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .pri-urgent{background:#fee2e2;color:#991b1b}
 .empty-state{text-align:center;padding:52px 20px;color:#aab0bb}
 .empty-state i{font-size:42px;color:#d0d5dd;display:block;margin-bottom:12px}
+
+/* ── Taller rows ── */
+.wo-table td{padding:14px 8px}
+.wo-table th{padding:11px 10px}
 
 /* ── MODAL OVERLAY ── */
 .modal-overlay{
@@ -673,7 +676,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
     <!-- Welcome -->
     <div class="welcome-bar">
-        <h1>Welcome back, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?> 👋</h1>
+<h1>Welcome back, <?= htmlspecialchars(explode(' ', $user_name)[0]) ?> 👋</h1>
         <p>Submit a new work order or check the status of your existing requests.</p>
     </div>
 
