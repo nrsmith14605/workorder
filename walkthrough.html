@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WCSC Work Order System — Application Walkthrough</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0B1F2E; --navy-mid:#14334d; --cyan:#29b6d5; --cyan-dark:#1a9ab8;
+  --cyan-light:#e6f7fb; --cyan-muted:#c5eaf3; --gray-bg:#f0f4f8;
+  --gray-border:#d1d8e0; --text:#1a1a2e; --text-muted:#5a6478;
+}
+body{font-family:'Barlow',sans-serif;color:var(--text);-webkit-print-color-adjust:exact;print-color-adjust:exact;line-height:1.5}
+@media screen{body{background:#808080}}
+@page{size:letter portrait;margin:0}
+@media print{
+  body{background:#fff;margin:0;padding:0}
+  .page{width:100%;height:11in;min-height:unset;max-height:11in;margin:0;box-shadow:none;overflow:hidden;page-break-after:always;break-after:page}
+  .page:last-child{page-break-after:auto;break-after:auto}
+  .cover{min-height:unset;height:11in}
+}
+.page{width:8.5in;min-height:11in;background:#fff;margin:0.4in auto 1in;box-shadow:0 6px 48px rgba(0,0,0,.35);display:flex;flex-direction:column;position:relative;overflow:hidden}
+
+/* ── COVER ─────────────────────────────────── */
+.cover{background:var(--navy);min-height:11in;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:.9in 1in .7in;text-align:center}
+.cover-top-stripe{position:absolute;top:0;left:0;right:0;height:5px;background:var(--cyan)}
+.cover-logo{width:100px;height:auto;margin-bottom:.28in;display:block}
+.cover-icon-badge{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:.28in}
+.cover-icon-badge img{width:60px;height:60px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.35);flex-shrink:0}
+.cover-icon-text{text-align:left}
+.cover-icon-title{font-family:'Barlow Condensed',sans-serif;font-size:11pt;font-weight:700;color:var(--cyan);letter-spacing:.03em}
+.cover-icon-sub{font-size:8pt;color:rgba(255,255,255,.4);margin-top:2px}
+.cover-org{font-family:'Barlow Condensed',sans-serif;font-size:32pt;font-weight:800;color:#fff;letter-spacing:.03em;text-transform:uppercase;line-height:1.1;margin-bottom:.07in}
+.cover-division{font-size:10.5pt;font-weight:400;color:rgba(255,255,255,.45);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.2in}
+.cover-rule{width:3.2in;height:3px;background:var(--cyan);margin:0 auto .2in}
+.cover-product{font-family:'Barlow Condensed',sans-serif;font-size:25pt;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.07in}
+.cover-subtitle{font-size:11.5pt;font-weight:300;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.4in}
+.cover-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:.45in}
+.cover-pill{background:rgba(41,182,213,.12);border:1px solid rgba(41,182,213,.35);border-radius:30px;padding:6px 18px;font-size:8.5pt;color:var(--cyan);font-weight:500;letter-spacing:.04em}
+.cover-divider{width:100%;height:1px;background:rgba(255,255,255,.1);margin-bottom:.25in}
+.cover-steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:.08in}
+.cs{text-align:center;padding:0 .16in}
+.cs-num{font-size:6.5pt;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px}
+.cs-label{font-family:'Barlow Condensed',sans-serif;font-size:10.5pt;font-weight:700;color:#fff}
+.cs-arrow{color:rgba(41,182,213,.4);font-size:11pt;line-height:1}
+.cover-corner-accent{position:absolute;bottom:0;right:0;width:200px;height:200px;border-top-left-radius:100%;background:rgba(41,182,213,.06);pointer-events:none}
+.cover-corner-accent2{position:absolute;top:0;left:0;width:150px;height:150px;border-bottom-right-radius:100%;background:rgba(41,182,213,.04);pointer-events:none}
+.cover-bottom{position:absolute;bottom:0;left:0;right:0;padding:.2in .5in;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.08)}
+.cover-website{font-size:10pt;color:var(--cyan);font-weight:600;letter-spacing:.06em}
+.cover-date{font-size:8pt;color:rgba(255,255,255,.35);letter-spacing:.04em}
+
+/* ── PAGE CHROME ────────────────────────────── */
+.page-header{background:var(--navy);padding:.18in .5in;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ph-logo{height:.44in;width:auto}
+.ph-right{text-align:right}
+.ph-org{font-family:'Barlow Condensed',sans-serif;font-size:12.5pt;font-weight:700;color:#fff;letter-spacing:.02em}
+.ph-sub{font-size:7.5pt;color:var(--cyan);margin-top:2px;letter-spacing:.04em}
+.page-accent{height:3px;background:var(--cyan);flex-shrink:0}
+.page-body{padding:.24in .5in .18in;flex:1}
+.page-footer{border-top:1px solid var(--gray-border);padding:.09in .5in;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pf-text{font-size:7.5pt;color:var(--text-muted)}
+.pf-website{font-size:7.5pt;color:var(--cyan);font-weight:600;letter-spacing:.04em}
+
+/* ── TYPOGRAPHY ─────────────────────────────── */
+.section-eyebrow{font-size:7pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:4px}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-size:19pt;font-weight:700;color:var(--navy);line-height:1.1;margin-bottom:.08in}
+.section-rule{height:2px;background:linear-gradient(90deg,var(--cyan) 0%,var(--cyan-muted) 55%,transparent 100%);margin-bottom:.13in}
+.subsection-head{font-family:'Barlow Condensed',sans-serif;font-size:11.5pt;font-weight:700;color:var(--navy);margin:.14in 0 .08in;padding-bottom:4px;border-bottom:2px solid var(--gray-border)}
+.body-text{font-size:8.5pt;line-height:1.6;color:var(--text);margin-bottom:.12in}
+.body-text strong{color:var(--navy)}
+.callout{background:var(--cyan-light);border:1px solid var(--cyan-muted);border-left:4px solid var(--cyan);border-radius:0 8px 8px 0;padding:.09in .13in;margin-bottom:.12in;font-size:8pt;color:var(--navy);line-height:1.5}
+.callout strong{font-weight:700;display:block;margin-bottom:2px}
+.step-badge{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:9pt;font-weight:700;padding:3px 11px 3px 4px;border-radius:20px;letter-spacing:.04em;margin-bottom:.09in}
+.step-num{background:var(--cyan);color:var(--navy);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:8pt;font-weight:800;flex-shrink:0}
+.step-icon{width:18px;height:18px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.step-icon img{width:14px;height:14px;object-fit:contain}
+
+/* ── SCREENSHOTS ────────────────────────────── */
+.ss-row{display:flex;gap:.16in;margin-bottom:.14in;align-items:flex-start}
+.ss-col{display:flex;flex-direction:column}
+.ss-frame{border:1px solid var(--gray-border);border-radius:8px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,.12)}
+.ss-frame img{display:block;width:100%;height:auto}
+.ss-cap{font-size:7pt;color:var(--text-muted);text-align:center;margin-top:4px;font-style:italic;line-height:1.3}
+.ss-full{margin-bottom:.12in}
+.ss-clip .ss-frame img{max-height:3.6in;object-fit:cover;object-position:top center}
+.ss-center{display:flex;flex-direction:column;align-items:center;margin-bottom:.13in}
+
+/* ── PHONE FRAMES ───────────────────────────── */
+.phone-outer{display:flex;justify-content:center;gap:.32in;margin:.1in 0 .14in}
+.phone-unit{display:flex;flex-direction:column;align-items:center}
+.phone-shell{background:#18181b;border-radius:32px;padding:7px;box-shadow:0 7px 24px rgba(0,0,0,.28);flex-shrink:0}
+.phone-shell img{display:block;border-radius:25px;height:auto}
+.phone-label{font-size:7pt;color:var(--text-muted);text-align:center;margin-top:7px;font-style:italic;line-height:1.3;max-width:2.3in}
+.phones-2 .phone-shell img{width:2.05in}
+.phones-3 .phone-shell img{width:1.55in}
+
+/* ── LAYOUT HELPERS ─────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:.18in}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.14in}
+.info-strip{display:flex;gap:.1in;margin-bottom:.13in}
+.info-block{flex:1;background:var(--gray-bg);border-radius:6px;padding:.09in .11in;border-top:3px solid var(--cyan)}
+.ib-label{font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:2px}
+.ib-val{font-size:8pt;font-weight:600;color:var(--navy);line-height:1.35}
+.chip-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.12in}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--gray-bg);border:1px solid var(--gray-border);border-radius:20px;padding:3px 9px;font-size:7.5pt;color:var(--text-muted);font-weight:500}
+.chip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.chip-dot.cyan{background:var(--cyan)} .chip-dot.green{background:#059669}
+.chip-dot.amber{background:#d97706} .chip-dot.red{background:#dc2626}
+.chip-dot.navy{background:var(--navy)} .chip-dot.purple{background:#7c3aed}
+
+/* ── ROLES TABLE ────────────────────────────── */
+table.rt{width:100%;border-collapse:collapse;font-size:8pt;margin-bottom:.14in}
+.rt thead th{background:var(--navy);color:#fff;padding:6px 9px;text-align:left;font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.rt tbody td{padding:6px 9px;border-bottom:1px solid var(--gray-border);vertical-align:top;line-height:1.4}
+.rt tbody tr:nth-child(odd) td{background:#f9fafb}
+.rt tbody tr:nth-child(even) td{background:#fff}
+.role-badge{display:inline-block;background:var(--navy);color:var(--cyan);font-family:'Barlow Condensed',sans-serif;font-size:9pt;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em;white-space:nowrap}
+
+/* ── FEATURE / DETAIL CARDS ─────────────────── */
+.fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.1in;margin-bottom:.14in}
+.fc{border:1px solid var(--gray-border);border-left:4px solid var(--cyan);border-radius:0 8px 8px 0;padding:.1in .13in;background:#fff}
+.fc-title{font-family:'Barlow Condensed',sans-serif;font-size:11.5pt;font-weight:700;color:var(--navy);margin-bottom:3px}
+.fc-body{font-size:7.5pt;color:var(--text-muted);line-height:1.5}
+.fc.amber{border-left-color:#d97706}
+.fc.green{border-left-color:#059669}
+.fc.purple{border-left-color:#7c3aed}
+.fc.red{border-left-color:#dc2626}
+.fc.gold{border-left-color:#ca8a04}
+
+/* ── ACTION EXPANDERS ───────────────────────── */
+.action-card{border:1px solid var(--gray-border);border-radius:8px;padding:.12in .15in;margin-bottom:.1in}
+.action-card-head{display:flex;align-items:center;gap:8px;margin-bottom:.06in}
+.action-pill{display:inline-block;border-radius:5px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:10pt;font-weight:700;letter-spacing:.02em;color:#fff}
+.action-pill.assign{background:var(--navy-mid)}
+.action-pill.complete{background:#059669}
+.action-pill.reject{background:#dc2626}
+.action-body{font-size:8pt;color:var(--text);line-height:1.55}
+.action-body strong{color:var(--navy)}
+
+/* ── APPROVAL FLOWCHART ─────────────────────── */
+.flow-wrap{display:grid;grid-template-columns:1fr 1fr;gap:.18in;margin-bottom:.14in}
+.flow-col{display:flex;flex-direction:column;align-items:stretch}
+.flow-type-hd{border-radius:6px 6px 0 0;padding:5px 10px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11pt;font-weight:700;color:#fff;letter-spacing:.02em;margin-bottom:.06in}
+.flow-type-hd.maint{background:#b45309}
+.flow-type-hd.tech{background:var(--cyan-dark)}
+.fb{border-radius:5px;padding:5px 8px;text-align:center;font-size:7.5pt;font-weight:600;line-height:1.3;margin-bottom:3px}
+.fb-user{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af}
+.fb-status{background:var(--gray-bg);border:1px dashed var(--gray-border);color:var(--text-muted);font-weight:500;font-size:7pt}
+.fb-admin{background:var(--navy);color:#fff;border:1px solid var(--navy)}
+.fb-branch{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:6.5pt}
+.fb-bp{background:#fef9c3;border:1px solid #fde047;color:#713f12}
+.fb-mm{background:#7c2d12;color:#fff;border:1px solid #7c2d12}
+.fb-mt{background:var(--cyan-dark);color:#fff;border:1px solid var(--cyan-dark)}
+.fb-worker{background:#14532d;color:#fff;border:1px solid #14532d}
+.fb-complete{background:#059669;color:#fff;border:1px solid #059669}
+.flow-arrow{text-align:center;font-size:9pt;color:#94a3b8;line-height:1;margin:1px 0 2px}
+
+/* ── REPORT CARDS ───────────────────────────── */
+.report-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.1in;margin-bottom:.13in}
+.rc{background:var(--gray-bg);border-radius:8px;padding:.1in .12in;border-top:3px solid var(--cyan)}
+.rc-title{font-family:'Barlow Condensed',sans-serif;font-size:10.5pt;font-weight:700;color:var(--navy);margin-bottom:3px;line-height:1.2}
+.rc-body{font-size:7.5pt;color:var(--text-muted);line-height:1.5}
+.rc.amber{border-top-color:#d97706}
+.rc.green{border-top-color:#059669}
+
+/* ── COLUMN LEGEND ──────────────────────────── */
+.col-legend{display:grid;grid-template-columns:1fr 1fr;gap:.06in .18in;margin-bottom:.12in}
+.cl-item{display:flex;gap:7px;align-items:flex-start;font-size:7.5pt;line-height:1.35}
+.cl-key{font-weight:700;color:var(--navy);white-space:nowrap;min-width:.65in}
+.cl-val{color:var(--text-muted)}
+
+/* ── STATUS TABS ────────────────────────────── */
+.tab-row{display:flex;gap:.07in;margin-bottom:.12in}
+.tab-item{flex:1;border-radius:6px;padding:6px 8px;text-align:center;border:1px solid var(--gray-border)}
+.tab-name{font-family:'Barlow Condensed',sans-serif;font-size:10pt;font-weight:700;color:var(--navy);line-height:1}
+.tab-desc{font-size:6.5pt;color:var(--text-muted);margin-top:3px;line-height:1.3}
+.tab-item.t-pending{border-top:3px solid #f59e0b;background:#fffbeb}
+.tab-item.t-approved{border-top:3px solid #059669;background:#f0fdf4}
+.tab-item.t-inprog{border-top:3px solid var(--cyan);background:var(--cyan-light)}
+.tab-item.t-complete{border-top:3px solid #7c3aed;background:#faf5ff}
+.tab-item.t-rejected{border-top:3px solid #dc2626;background:#fef2f2}
+.tab-item.t-all{border-top:3px solid var(--navy);background:#f9fafb}
+
+</style>
+</head>
+<body>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║           PAGE 1 — COVER                ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="cover">
+    <div class="cover-top-stripe"></div>
+    <div class="cover-corner-accent"></div>
+    <div class="cover-corner-accent2"></div>
+
+    <img src="images/logo.png" class="cover-logo" alt="WCSC Logo">
+
+    <div class="cover-icon-badge">
+      <img src="mobile/icon_template.png" alt="WCSC Work Orders App Icon">
+      <div class="cover-icon-text">
+        <div class="cover-icon-title">Available as a Progressive Web App</div>
+        <div class="cover-icon-sub">Install to iOS &amp; Android home screen — no App Store required</div>
+      </div>
+    </div>
+
+    <div class="cover-org">Warrick County<br>School Corporation</div>
+    <div class="cover-division">Facilities &amp; Technology Division</div>
+    <div class="cover-rule"></div>
+    <div class="cover-product">Work Order Management System</div>
+    <div class="cover-subtitle">Application Walkthrough &amp; Screen Guide</div>
+
+    <div class="cover-pills">
+      <span class="cover-pill">Google SSO Authentication</span>
+      <span class="cover-pill">Role-Based Access Control</span>
+      <span class="cover-pill">Maintenance &amp; Technology Orders</span>
+      <span class="cover-pill">Mobile PWA — iOS &amp; Android</span>
+      <span class="cover-pill">Push Notifications</span>
+      <span class="cover-pill">PDF Reports &amp; Print Views</span>
+    </div>
+
+    <div class="cover-divider"></div>
+
+    <div class="cover-steps">
+      <div class="cs"><div class="cs-num">01</div><div class="cs-label">Sign In</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">02</div><div class="cs-label">Roles</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">03</div><div class="cs-label">Submit</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">04</div><div class="cs-label">Approve</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">05</div><div class="cs-label">Assign</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">06</div><div class="cs-label">Complete</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">07</div><div class="cs-label">Report</div></div>
+      <div class="cs-arrow">›</div>
+      <div class="cs"><div class="cs-num">08</div><div class="cs-label">Mobile</div></div>
+    </div>
+
+    <div class="cover-bottom">
+      <div class="cover-website">wcscworkorder.com</div>
+      <div class="cover-date">Warrick County School Corporation &nbsp;·&nbsp; 300 E. Gum St., Boonville, IN 47601</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║        PAGE 2 — SIGNING IN              ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">1</span>Signing In &amp; User Management</div>
+    <div class="section-title">Access from Any Device — Secured by Google</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">The system is fully accessible from any device with a modern browser — a <strong>desktop computer, laptop, tablet, or smartphone</strong>. No software installation is required. Staff simply navigate to the site, tap "Continue with Google," and are signed in within seconds using their existing district account. Field staff on phones or tablets are automatically redirected to the optimized mobile dashboard.</p>
+
+    <div class="ss-row" style="align-items:center;margin-bottom:.12in">
+      <div class="ss-col" style="flex:1.45">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 083345.png" alt="Desktop login page">
+        </div>
+        <div class="ss-cap">Desktop — split-panel login with branding and Google Sign-In</div>
+      </div>
+      <div class="ss-col" style="flex:0 0 auto;align-items:center">
+        <div class="phone-shell">
+          <img src="screenshots/m7.jpg" alt="Mobile login" style="width:1.45in;border-radius:24px;display:block">
+        </div>
+        <div class="ss-cap" style="max-width:1.8in">Mobile login — district branding, one-tap sign in</div>
+      </div>
+    </div>
+
+    <p class="body-text" style="margin-bottom:.12in">Authentication is handled entirely by <strong>Google's OAuth 2.0 infrastructure</strong> — the system never receives, stores, or transmits district passwords. When a user signs in, Google verifies their identity and returns a secure token. The system then checks two things: (1) the account's email domain must end in <strong>@warrick.k12.in.us</strong>, and (2) the user must exist in the system with an active account. Any attempt to sign in with a personal Gmail, a different organization's account, or a deactivated district account is rejected before a session is ever created. If the district suspends a staff member's Google account, their work order system access is revoked automatically — no separate action needed from the administrator.</p>
+
+    <div class="subsection-head" style="margin-top:.08in">Managing Users — Administrator Access</div>
+
+    <div class="ss-row" style="align-items:flex-start;margin-bottom:0">
+      <div class="ss-col" style="flex:1.3">
+        <div class="ss-frame">
+          <img src="screenshots/manage_users.png" alt="Manage Users page with Add User modal">
+        </div>
+        <div class="ss-cap">Manage Users — user list with role filter tabs, live search, User Summary panel, and Add User modal showing building assignment checkboxes</div>
+      </div>
+      <div class="ss-col" style="flex:1;padding-top:.04in">
+        <p class="body-text" style="margin-bottom:.09in">Administrators access <strong>Manage Users</strong> from their profile avatar in the top-right corner. The page shows every account in the system, filterable by role tab and searchable by name or email. A <strong>User Summary</strong> panel on the right displays a live count of users in each role.</p>
+        <p class="body-text" style="margin-bottom:.09in">Creating a new account requires a first name, last name, district email address, and role assignment. For building-scoped roles (Building Principal, Building Technician, Building Custodian, Building Maintenance), a <strong>building picker</strong> appears — organized by High Schools, Middle Schools, and Elementary — allowing multi-building assignments in a single step.</p>
+        <p class="body-text" style="margin-bottom:0">Any existing user record can be <strong>edited inline</strong> — name, email, role, and buildings. Accounts can be <strong>deactivated</strong> (not deleted) at any time; deactivated users lose access immediately at their next login while all their historical order data remains intact.</p>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║      PAGE 3 — ROLES & PERMISSIONS       ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">2</span>Roles &amp; Permissions</div>
+    <div class="section-title">Who Can See and Do What</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">Every user is assigned one of nine roles that controls exactly what they see and can act upon. Roles are set by an Administrator and take effect at the user's next login. Building-scoped roles are additionally filtered to one or more specific schools — those users never see orders from other buildings.</p>
+
+    <table class="rt">
+      <thead>
+        <tr>
+          <th style="width:52px">Role</th>
+          <th style="width:155px">Title</th>
+          <th>What They Can See &amp; Do</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="role-badge">A</span></td>
+          <td><strong>Administrator</strong></td>
+          <td>Full system access. Views, manages, approves, assigns, and closes all orders of both types across every building. Manages all user accounts, roles, and building assignments. Generates all report types. Accesses the Manage Users page to add, edit, or deactivate any account.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MM</span></td>
+          <td><strong>Maintenance Manager</strong></td>
+          <td>Sees all maintenance orders district-wide. Approves, rejects, assigns maintenance workers (MW, BC, BM), and marks orders complete. Generates maintenance-scoped PDF reports. Does not see technology orders.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MT</span></td>
+          <td><strong>Technology Manager</strong></td>
+          <td>Sees all technology orders district-wide. Approves, rejects, assigns building technicians (BT), and marks orders complete. Generates technology-scoped PDF reports. Does not see maintenance orders.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BP</span></td>
+          <td><strong>Building Principal</strong></td>
+          <td>Sees all orders (both types) submitted from their assigned building(s). Reviews escalated orders and can approve or reject them before they route to the department manager. Cannot assign workers or generate reports.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BT</span></td>
+          <td><strong>Building Technician</strong></td>
+          <td>Sees only technology orders assigned to them at their associated building(s). Adds notes and photos, marks assigned orders In Progress or Complete from the field. Has access to the mobile interface. Cannot approve, reject, or assign others.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BC</span></td>
+          <td><strong>Building Custodian</strong></td>
+          <td>Sees only maintenance orders assigned to them at their building. Adds notes and photos, updates status from the field via mobile. Scope is limited to their own assigned orders — cannot see other workers' orders or the full building queue.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">BM</span></td>
+          <td><strong>Building Maintenance</strong></td>
+          <td>Identical capabilities to Building Custodian — sees only personally assigned maintenance orders at their building. Adds notes, attaches photos, and marks complete from the mobile interface. Building-scoped and assignment-scoped.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">MW</span></td>
+          <td><strong>Maintenance Worker</strong></td>
+          <td>District-wide maintenance worker not tied to a specific building. Sees only orders assigned to them, regardless of which school the order originates from. Adds notes and photos from the field, marks work complete via the mobile interface.</td>
+        </tr>
+        <tr>
+          <td><span class="role-badge">U</span></td>
+          <td><strong>General User</strong></td>
+          <td>All teachers, office staff, and other district employees who are not in a specialized role. Submits maintenance and technology work orders. Sees only their own submitted orders and their current status. Receives email notifications as their orders progress. Cannot see other users' orders.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="two-col" style="gap:.12in">
+      <div class="callout" style="margin-bottom:0">
+        <strong>Building-Scoped Roles (BP, BT, BC, BM)</strong>
+        When a building-scoped role is assigned, the administrator selects one or more school buildings during account creation. All queries for that user are automatically filtered server-side to those buildings — there is no way to accidentally view another school's orders.
+      </div>
+      <div class="callout" style="margin-bottom:0">
+        <strong>Deactivating vs. Deleting</strong>
+        Administrators deactivate accounts rather than delete them. This preserves the full history of orders that worker submitted or was assigned to. Deactivated accounts cannot log in but their names remain visible in historical activity logs and completed order records.
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║        PAGE 4 — THE DASHBOARD           ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">3</span>The Dashboard</div>
+    <div class="section-title">Your Work Order Command Center</div>
+    <div class="section-rule"></div>
+
+    <div class="ss-full ss-clip">
+      <div class="ss-frame">
+        <img src="screenshots/Screenshot 2026-06-24 083414.png" alt="Admin dashboard">
+      </div>
+    </div>
+
+    <div class="chip-row" style="margin-top:.07in">
+      <span class="chip"><span class="chip-dot cyan"></span>Order type cards — start a new Maintenance or Technology request</span>
+      <span class="chip"><span class="chip-dot navy"></span>Pending Work Orders table — sortable, role-filtered</span>
+      <span class="chip"><span class="chip-dot amber"></span>Status filter tabs — All · Pending · Approved · In Progress · Completed · Rejected</span>
+      <span class="chip"><span class="chip-dot green"></span>Reports — top right, opens role-scoped PDF generator</span>
+      <span class="chip"><span class="chip-dot navy"></span>Notification bell — real-time unread badge</span>
+    </div>
+
+    <div class="two-col" style="gap:.16in;margin-bottom:.12in">
+      <div>
+        <div class="subsection-head" style="margin-top:0">Pending Orders Table — Columns</div>
+        <div class="col-legend">
+          <div class="cl-item"><span class="cl-key">WO #</span><span class="cl-val">Unique work order number — links directly to the detail page</span></div>
+          <div class="cl-item"><span class="cl-key">Submitted By</span><span class="cl-val">Name of the staff member who created the request</span></div>
+          <div class="cl-item"><span class="cl-key">Type</span><span class="cl-val">Maintenance or Technology — color-coded badge</span></div>
+          <div class="cl-item"><span class="cl-key">Building</span><span class="cl-val">School building code (CHS, BMS, THS, etc.)</span></div>
+          <div class="cl-item"><span class="cl-key">Room</span><span class="cl-val">Specific room or location within the building</span></div>
+          <div class="cl-item"><span class="cl-key">Description</span><span class="cl-val">Brief preview of the issue description</span></div>
+          <div class="cl-item"><span class="cl-key">Avail. Time</span><span class="cl-val">Window when the room is accessible for work</span></div>
+          <div class="cl-item"><span class="cl-key">Problem Type</span><span class="cl-val">Specific category (Flooring, Projector, HVAC, etc.)</span></div>
+          <div class="cl-item"><span class="cl-key">Priority</span><span class="cl-val">Low / Mid / High / Urgent — color-coded</span></div>
+          <div class="cl-item"><span class="cl-key">Status</span><span class="cl-val">Current lifecycle stage — updates in real time</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="subsection-head" style="margin-top:0">Status Filter Tabs</div>
+        <div class="tab-row" style="flex-wrap:wrap;gap:.06in">
+          <div class="tab-item t-all" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">All</div>
+            <div class="tab-desc">Every order in your permitted scope</div>
+          </div>
+          <div class="tab-item t-pending" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">Pending</div>
+            <div class="tab-desc">Submitted, awaiting approval</div>
+          </div>
+          <div class="tab-item t-approved" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">Approved</div>
+            <div class="tab-desc">Approved but not yet assigned to workers</div>
+          </div>
+          <div class="tab-item t-inprog" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">In Progress</div>
+            <div class="tab-desc">Workers assigned, actively being worked</div>
+          </div>
+          <div class="tab-item t-complete" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">Completed</div>
+            <div class="tab-desc">Resolved and closed — full history retained</div>
+          </div>
+          <div class="tab-item t-rejected" style="flex:0 0 calc(50% - .03in)">
+            <div class="tab-name">Rejected</div>
+            <div class="tab-desc">Declined at approval; submitter was notified</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-bottom:0">
+      <strong>Role-Filtered View — Same Interface, Different Data</strong>
+      Every query is filtered server-side based on the authenticated user's role and building assignments. A General User sees only their own submissions. A Building Principal sees all orders from their school. A Maintenance Manager sees every open maintenance order district-wide. The same dashboard layout adapts automatically — no configuration needed by the user.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║     PAGE 5 — SUBMITTING A WORK ORDER    ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">4</span>Submitting a Work Order</div>
+    <div class="section-title">Guided Submission Form</div>
+    <div class="section-rule"></div>
+
+    <div class="ss-row" style="margin-bottom:.12in">
+      <div class="ss-col" style="flex:1">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 083450.png" alt="Maintenance request form">
+        </div>
+        <div class="ss-cap">Maintenance Request — empty form ready to fill out</div>
+      </div>
+      <div class="ss-col" style="flex:1">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 083742.png" alt="Technology request form filled">
+        </div>
+        <div class="ss-cap">Technology Request — fully completed with 2 photos attached, ready to submit</div>
+      </div>
+    </div>
+
+    <div class="two-col" style="gap:.16in;margin-bottom:.12in">
+      <div>
+        <div class="subsection-head" style="margin-top:0">Required Form Fields</div>
+        <div class="col-legend" style="grid-template-columns:1fr">
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Your Email</span><span class="cl-val">Pre-filled automatically from your Google account — cannot be changed</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Building</span><span class="cl-val">Select the school building where work is needed from the full district list</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Room / Location</span><span class="cl-val">Specific room number or descriptive location (e.g. "Room 214", "Main Gym")</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Avail. Window</span><span class="cl-val">Time range the room or area can be accessed (From / To time pickers)</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Purpose</span><span class="cl-val">The general purpose or context for the request</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Problem Type</span><span class="cl-val">Specific category: HVAC, Plumbing, Projector, Network, etc.</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Description</span><span class="cl-val">Free-text field — describe the issue in full detail, including what needs to be done and any relevant context</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.9in">Priority</span><span class="cl-val">Low · Mid · High · Urgent — selected via button group; High is default for illustrated order</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="subsection-head" style="margin-top:0">Photo Attachments (Optional)</div>
+        <div class="col-legend" style="grid-template-columns:1fr">
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Formats</span><span class="cl-val">JPG / JPEG, PNG, WEBP, and HEIC (iPhone native format) are all accepted</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Limit</span><span class="cl-val">Up to <strong>5 photos</strong> per work order submission</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Max Size</span><span class="cl-val">10 MB per individual photo</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Upload</span><span class="cl-val">Click or drag-and-drop into the upload zone; thumbnails appear immediately for preview before submitting</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Mobile</span><span class="cl-val">On phones, workers can take a live photo with the camera or choose from the device photo library</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">After Submit</span><span class="cl-val">Additional photos can be added later via the Add Update panel on the order detail page — even after the order is In Progress</span></div>
+        </div>
+        <div class="subsection-head">After You Submit</div>
+        <div class="col-legend" style="grid-template-columns:1fr">
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Confirmation</span><span class="cl-val">A modal displays the assigned WO number (e.g. WO-000055) and confirms the order entered the approval queue</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Dashboard</span><span class="cl-val">The new order appears immediately in your dashboard under the <em>Pending</em> tab</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Email</span><span class="cl-val">A confirmation email is sent to you automatically — no action required</span></div>
+          <div class="cl-item"><span class="cl-key" style="min-width:.75in">Tracking</span><span class="cl-val">You can monitor status changes in real time from the dashboard or via the email notifications sent at each workflow stage</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║   PAGE 6 — CONFIRMATION & APPROVAL      ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">5</span>Confirmation &amp; Approval Chain</div>
+    <div class="section-title">Order Confirmed — The Path to Completion</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text" style="margin-bottom:.13in">After submission, every order follows a structured, role-gated approval chain before workers are assigned. The chart below maps the full journey for both order types. Email notifications fire automatically at each stage transition — no manual follow-up is needed by any staff member.</p>
+
+    <!-- FLOWCHART -->
+    <div class="flow-wrap">
+
+      <!-- MAINTENANCE -->
+      <div class="flow-col">
+        <div class="flow-type-hd maint">&#128295; Maintenance Order Chain</div>
+        <div class="fb fb-user">&#128100; General User (U) submits order</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: Pending Approval &nbsp;·&nbsp; Confirmation email sent to submitter</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-admin">&#128273; Admin (A) or Maintenance Manager (MM) reviews</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-branch">&#8594; Approve &amp; Escalate to Principal &nbsp;|&nbsp; Approve Directly &nbsp;|&nbsp; &#10007; Reject (submitter notified)</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-bp">&#127eb; Building Principal (BP) reviews &amp; approves (if escalated)</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: Approved &nbsp;·&nbsp; MM receives &amp; assigns workers</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-mm">&#128296; MM assigns MW · BC · BM workers</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: In Progress &nbsp;·&nbsp; Workers add notes &amp; photos</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-complete">&#10003; Marked Complete &nbsp;·&nbsp; Status: Completed &nbsp;·&nbsp; Submitter notified</div>
+      </div>
+
+      <!-- TECHNOLOGY -->
+      <div class="flow-col">
+        <div class="flow-type-hd tech">&#128187; Technology Order Chain</div>
+        <div class="fb fb-user">&#128100; General User (U) submits order</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: Pending Approval &nbsp;·&nbsp; Confirmation email sent to submitter</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-admin">&#128273; Admin (A) or Technology Manager (MT) reviews</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-branch">&#8594; Approve &amp; Escalate to Principal &nbsp;|&nbsp; Approve Directly &nbsp;|&nbsp; &#10007; Reject (submitter notified)</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-bp">&#127eb; Building Principal (BP) reviews &amp; approves (if escalated)</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: Approved &nbsp;·&nbsp; MT receives &amp; assigns technicians</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-mt">&#128187; MT assigns Building Technician(s) (BT)</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-status">Status: In Progress &nbsp;·&nbsp; Technician adds notes &amp; photos</div>
+        <div class="flow-arrow">&#9660;</div>
+        <div class="fb fb-complete">&#10003; Marked Complete &nbsp;·&nbsp; Status: Completed &nbsp;·&nbsp; Submitter notified</div>
+      </div>
+
+    </div>
+
+    <div class="ss-row" style="margin-bottom:0">
+      <div class="ss-col" style="flex:1.1">
+        <div class="ss-center">
+          <div class="ss-frame" style="width:88%">
+            <img src="screenshots/Screenshot 2026-06-24 083759.png" alt="Work order submitted confirmation">
+          </div>
+          <div class="ss-cap">Submission confirmed — unique WO number assigned immediately</div>
+        </div>
+      </div>
+      <div class="ss-col" style="flex:.9">
+        <div class="ss-center">
+          <div class="ss-frame" style="width:95%">
+            <img src="screenshots/Screenshot 2026-06-24 083923.png" alt="Approve and escalate dialog">
+          </div>
+          <div class="ss-cap">Approve &amp; Escalate — sends to Building Principal before routing to department manager</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║       PAGE 7 — ORDER DETAIL VIEW        ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">6</span>Order Detail</div>
+    <div class="section-title">Full Order Detail Page</div>
+    <div class="section-rule"></div>
+
+    <div class="ss-full ss-clip" style="margin-bottom:.14in">
+      <div class="ss-frame">
+        <img src="screenshots/Screenshot 2026-06-24 084004.png" alt="Order detail page — approved state">
+      </div>
+    </div>
+
+    <div class="fc-grid">
+
+      <div class="fc">
+        <div class="fc-title">Status &amp; Priority Badges</div>
+        <div class="fc-body">Displayed in the top-right corner of every detail page, the status badge updates automatically as the order moves through the workflow (Pending → Approved → In Progress → Completed / Rejected). The priority badge reflects the current assigned level — authorized roles can change priority directly on this page, and the change is recorded in the Activity Log with a timestamp and the name of who made it.</div>
+      </div>
+
+      <div class="fc amber">
+        <div class="fc-title">Request Details Panel</div>
+        <div class="fc-body">The left-side panel displays all core information submitted with the order: building code, room or location, problem type, availability time window, the submitter's full name and email address, and the original submission date. This data is permanent and cannot be edited after submission — it forms the official record of what was requested and when.</div>
+      </div>
+
+      <div class="fc green">
+        <div class="fc-title">Attached Photos &amp; Description</div>
+        <div class="fc-body">The full description text appears in a dedicated block, followed by a thumbnail gallery of all attached photos. Clicking any thumbnail opens a full-screen lightbox viewer with left and right navigation arrows to step through multiple images. The lightbox uses browser history pushState so the Android back button and iOS swipe gesture close the viewer naturally without navigating away from the order.</div>
+      </div>
+
+      <div class="fc purple">
+        <div class="fc-title">Activity Log</div>
+        <div class="fc-body">A complete, timestamped audit trail of every action ever taken on the order: initial submission, approval or rejection decisions, priority changes and who made them, notes added by any staff member, worker assignments, and completion or rejection events. Each entry shows the date, time, actor name, role, and the specific action taken. The log is read-only and cannot be altered.</div>
+      </div>
+
+      <div class="fc gold">
+        <div class="fc-title">Assign Workers Panel</div>
+        <div class="fc-body">Displayed on the right side of the detail page, this panel shows a searchable list of eligible workers filtered by role and building. Managers check one or more names and click Assign — the system records the assignment, updates the status, and immediately sends an email notification to every assigned worker. The panel also reflects who is currently assigned and allows re-assignment if needed.</div>
+      </div>
+
+      <div class="fc red">
+        <div class="fc-title">Action Buttons</div>
+        <div class="fc-body">The Actions section provides context-sensitive buttons based on the current status and the viewer's role. <strong>Approve → Principal</strong> escalates to the BP for review. <strong>Assign &amp; Start</strong> assigns selected workers and moves the order to In Progress in one step. <strong>Mark Completed</strong> closes the order and notifies the submitter. <strong>Reject</strong> declines the order with a required written reason, also notifying the submitter by email.</div>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║     PAGE 8 — ACTIONS & WORKFLOW         ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">7</span>Taking Action</div>
+    <div class="section-title">Assigning, Completing &amp; Rejecting Orders</div>
+    <div class="section-rule"></div>
+
+    <div class="ss-row" style="align-items:flex-start;margin-bottom:.13in">
+      <div class="ss-col" style="flex:1.5">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 084148.png" alt="Order detail in progress with assigned workers">
+        </div>
+        <div class="ss-cap">Order detail — In Progress, assigned workers John Knight, Chad McCombs, and Mike Kemp listed with full activity log below</div>
+      </div>
+      <div class="ss-col" style="flex:1;gap:.11in">
+        <div class="ss-frame" style="margin-bottom:.11in">
+          <img src="screenshots/Screenshot 2026-06-24 084314.png" alt="Mark as Completed confirmation">
+        </div>
+        <div class="ss-cap" style="margin-bottom:.13in">Mark as Completed — confirmation dialog before closing the order</div>
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 084304.png" alt="Reject Work Order confirmation">
+        </div>
+        <div class="ss-cap">Reject Work Order — confirmation with order number; reason was provided earlier</div>
+      </div>
+    </div>
+
+    <!-- Three action detail cards -->
+    <div class="action-card">
+      <div class="action-card-head">
+        <span class="action-pill assign">Assign Workers</span>
+        <span style="font-size:7.5pt;color:var(--text-muted)">Who can do it: Admin (A), Maintenance Manager (MM), Technology Manager (MT)</span>
+      </div>
+      <div class="action-body">
+        The Assign Workers panel on the detail page shows a filtered list of eligible staff — only workers in the correct role type for the order (MW/BC/BM for maintenance, BT for technology) are shown, and building-scoped workers are further filtered by building match. Managers check one or more workers and click Assign. <strong>Multiple workers can be assigned to a single order</strong> when a job requires a crew. Upon assignment, the order status advances to <strong>In Progress</strong>, the assigned workers immediately appear on the detail page under "Assigned Workers," and each worker receives an email notification directing them to the order. Workers can also be re-assigned or additional workers added at any time while the order remains open.
+      </div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-card-head">
+        <span class="action-pill complete">Mark as Completed</span>
+        <span style="font-size:7.5pt;color:var(--text-muted)">Who can do it: Admin (A), Maintenance Manager (MM), Technology Manager (MT), assigned field workers</span>
+      </div>
+      <div class="action-body">
+        Clicking <strong>Mark Completed</strong> opens a confirmation dialog showing the order number and a plain-language summary of what will happen. Upon confirmation, the order status changes to <strong>Completed</strong>, the order is removed from active queues and moved to the Completed tab, and an <strong>email notification is automatically sent to the original submitter</strong> informing them their request has been resolved. The full history — all notes, photos, assigned workers, approval chain, and timestamps — remains permanently accessible in the order's activity log. Both field workers (from mobile) and managers (from desktop) can trigger completion.
+      </div>
+    </div>
+
+    <div class="action-card" style="margin-bottom:0">
+      <div class="action-card-head">
+        <span class="action-pill reject">Reject Order</span>
+        <span style="font-size:7.5pt;color:var(--text-muted)">Who can do it: Admin (A), Building Principal (BP), Maintenance Manager (MM), Technology Manager (MT)</span>
+      </div>
+      <div class="action-body">
+        Rejecting an order requires a <strong>written reason</strong> before the action can be submitted — the system enforces this to ensure the submitter always understands why their request was declined. Upon confirmation, the order status changes to <strong>Rejected</strong>, the written reason is recorded in the Activity Log, and an email is sent to the original submitter that includes the rejection reason. Rejected orders remain visible under the Rejected filter tab for record-keeping and are never permanently deleted. If the underlying issue still needs to be addressed, the submitter can open a new work order — the previous rejected order serves as a reference.
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║      PAGE 9 — PRINT VIEW & REPORTS      ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge"><span class="step-num">8</span>Print View &amp; Reports</div>
+    <div class="section-title">Branded Documentation &amp; PDF Reporting Suite</div>
+    <div class="section-rule"></div>
+
+    <div class="ss-row" style="align-items:flex-start;margin-bottom:.13in">
+      <div class="ss-col" style="flex:1.1">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 084107.png" alt="Print view of a work order">
+        </div>
+        <div class="ss-cap">Work order print view — WCSC-branded header, full request details, assigned workers, and complete activity log. Access via the Print button on any order detail page.</div>
+      </div>
+      <div class="ss-col" style="flex:1">
+        <div class="ss-frame">
+          <img src="screenshots/Screenshot 2026-06-24 084224.png" alt="Reports panel">
+        </div>
+        <div class="ss-cap">Reports panel — role-scoped drawer, six report types, Generate PDF button downloads immediately. Role determines which reports and which workers appear.</div>
+      </div>
+    </div>
+
+    <div class="report-grid">
+
+      <div class="rc">
+        <div class="rc-title">Active Maintenance Orders</div>
+        <div class="rc-body">A complete snapshot of every open maintenance work order in the system, sorted by priority (Urgent first) then by age. Each row includes building, room, problem type, submitter, currently assigned workers, current status, and the number of days the order has been open. Scoped to MM and Admin only — MM sees maintenance, Admin sees both types.</div>
+      </div>
+
+      <div class="rc">
+        <div class="rc-title">Active Technology Orders</div>
+        <div class="rc-body">The technology equivalent of the Active Maintenance report — all open technology service requests with building, room, problem category, submitter, assigned technician(s), and days open. Formatted identically for easy cross-department comparison. Accessible to Technology Manager and Admin. Neither manager sees the other's report type.</div>
+      </div>
+
+      <div class="rc amber">
+        <div class="rc-title">Aging Report</div>
+        <div class="rc-body">Surfaces orders that have been open beyond a configurable age threshold (default: 14 days). Designed to catch requests that are at risk of going unresolved. Each entry shows how many days the order has been open, color-coded by severity. Helps managers identify bottlenecks — whether in the approval chain, assignment, or active work. Available to Admin (both types), MM (maintenance only), MT (technology only).</div>
+      </div>
+
+      <div class="rc">
+        <div class="rc-title">By Building</div>
+        <div class="rc-body">Generates a full list of all work orders — both open and recently closed — for a selected school building. Useful for site visits, principal briefings, or end-of-year documentation for a specific facility. The administrator selects the building from a dropdown before generating. Provides a building-level view that no other report offers. Available to Admin only.</div>
+      </div>
+
+      <div class="rc green">
+        <div class="rc-title">Staff Member Report</div>
+        <div class="rc-body">Focuses on a single selected employee and shows their current open work (assigned orders still in progress), their completion history over a chosen time period (30, 60, or 90 days or 1 year), and a count summary of their output. Designed for performance reviews, documentation conversations, and individual accountability tracking. Available to Admin (any staff member), MM (maintenance staff), MT (technology staff).</div>
+      </div>
+
+      <div class="rc amber">
+        <div class="rc-title">Workload Distribution</div>
+        <div class="rc-body">A multi-employee side-by-side snapshot comparing every worker's current open (assigned) orders against their completed orders over the selected period. Provides a bird's-eye view of how work is distributed across the team — useful for identifying overloaded workers, under-utilized staff, and overall department throughput. Supports data-driven decisions when re-assigning or hiring. Available to Admin (all staff), MM (maintenance staff), MT (technology staff).</div>
+      </div>
+
+    </div>
+
+    <div class="callout" style="margin-bottom:0">
+      <strong>Report Format — Branded, Instant, No Third-Party Software</strong>
+      Every generated report is a formatted PDF document branded with the WCSC logo, organization name, and contact details in the header. Reports include a filter summary line, generation timestamp, the generating user's name, and a footer on every page. All documents download directly to the user's device — no external printing service or third-party software required.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║   PAGE 10 — MOBILE: SIGN IN & DASH      ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge" style="background:var(--cyan-dark)">
+      <span class="step-icon"><img src="mobile/icon_template.png" alt=""></span>
+      Mobile App — Sign In &amp; Dashboard
+    </div>
+    <div class="section-title">Progressive Web App — Field Staff Experience</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">Field roles (Maintenance Worker, Building Custodian, Building Maintenance, Building Technician) are automatically redirected to the mobile interface when signing in from a phone or tablet. The app installs to the home screen on iOS and Android — no App Store required. When the system is updated, every user gets the new version automatically the next time they open it.</p>
+
+    <div class="phone-outer phones-2">
+      <div class="phone-unit">
+        <div class="phone-shell">
+          <img src="screenshots/m7.jpg" alt="Mobile login">
+        </div>
+        <div class="phone-label">Mobile login — district-branded sign-in page, optimized for one-thumb use on any phone</div>
+      </div>
+      <div class="phone-unit">
+        <div class="phone-shell">
+          <img src="screenshots/m6.jpg" alt="Mobile dashboard">
+        </div>
+        <div class="phone-label">Mobile dashboard — personalized greeting, active order count, urgent count, priority-sorted card list</div>
+      </div>
+    </div>
+
+    <div class="info-strip">
+      <div class="info-block">
+        <div class="ib-label">Install Method</div>
+        <div class="ib-val">Add to Home Screen — no App Store needed</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Card Sort Order</div>
+        <div class="ib-val">Urgent → High → Mid → Low, oldest first</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Top Bar</div>
+        <div class="ib-val">WCSC app icon + user avatar with role profile</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Offline Mode</div>
+        <div class="ib-val">Service worker shows branded offline page if connectivity drops</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Updates</div>
+        <div class="ib-val">Automatic at next open — zero IT action needed</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-bottom:0">
+      <strong>No App Store. No IT Deployment. No Forced Update Prompts.</strong>
+      Because the mobile experience is a Progressive Web App delivered through the browser, there is nothing to install through the App Store or Google Play. Every enhancement reaches all users automatically at their next session — no MDM policy changes, no device enrollment, and no action required from staff or administrators.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  PAGE 11 — MOBILE: ORDER & ASSIGNMENT   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge" style="background:var(--cyan-dark)">
+      <span class="step-icon"><img src="mobile/icon_template.png" alt=""></span>
+      Mobile App — Order Detail &amp; Assignment
+    </div>
+    <div class="section-title">Viewing, Assigning &amp; Updating Orders from the Field</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">Tapping any card on the mobile dashboard opens the full order detail. Managers can assign workers directly from a bottom sheet picker. After assignment the order status advances to <strong>In Progress</strong> and assigned workers appear on the detail screen. Field workers can add notes and photos at any time using the Add Update panel.</p>
+
+    <div class="phone-outer phones-3">
+      <div class="phone-unit">
+        <div class="phone-shell"><img src="screenshots/m1.jpg" alt="Mobile order detail — approved"></div>
+        <div class="phone-label">Order detail — WO-000055, Approved / High. Photos, description, Add Update panel, and action buttons all accessible in one scroll.</div>
+      </div>
+      <div class="phone-unit">
+        <div class="phone-shell"><img src="screenshots/m2.jpg" alt="Assign Workers bottom sheet"></div>
+        <div class="phone-label">Assign Workers sheet — select workers; teal checkmarks show 2 selected, button updates count live before confirming.</div>
+      </div>
+      <div class="phone-unit">
+        <div class="phone-shell"><img src="screenshots/m3.jpg" alt="Mobile order detail — in progress"></div>
+        <div class="phone-label">After assignment — status advances to In Progress, assigned workers John Knight and Mike Kemp now listed on the detail card.</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-bottom:.1in">
+      <strong>Take Photo / Choose Image — Camera &amp; Gallery Uploads</strong>
+      The Add Update panel gives field workers direct access to the device camera and the phone's photo library. Up to 5 photos can be attached per update. Both a live camera capture and a library image can be included in the same update without either preview disappearing. FileReader API ensures thumbnails are stable regardless of the order images are selected.
+    </div>
+
+    <div class="info-strip" style="margin-bottom:0">
+      <div class="info-block">
+        <div class="ib-label">Starred Orders</div>
+        <div class="ib-val">Star the order you're actively working — it floats to the top of the list and persists across sessions</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Push Notifications</div>
+        <div class="ib-val">Real-time alerts on the lock screen when an order is assigned — even when the app is closed</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Back Gesture</div>
+        <div class="ib-val">Android back button and iOS edge-swipe close the photo lightbox naturally without leaving the order</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Application Walkthrough</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║   PAGE 12 — MOBILE: PROFILE & ACTIONS   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System — Application Walkthrough</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="step-badge" style="background:var(--cyan-dark)">
+      <span class="step-icon"><img src="mobile/icon_template.png" alt=""></span>
+      Mobile App — Profile &amp; Additional Actions
+    </div>
+    <div class="section-title">Profile Settings, Text Size &amp; Order Rejection</div>
+    <div class="section-rule"></div>
+
+    <p class="body-text">Tapping the user avatar in the top-right corner of the mobile dashboard opens the profile sheet. Workers can adjust the text size for comfortable field reading, switch to the full desktop site, or sign out. The Reject Order sheet provides a structured reason field to ensure the submitter always receives a clear explanation.</p>
+
+    <div class="phone-outer phones-2">
+      <div class="phone-unit">
+        <div class="phone-shell">
+          <img src="screenshots/m5.jpg" alt="Mobile profile sheet">
+        </div>
+        <div class="phone-label">Profile sheet — user name, email, role badge, 5-level text size controls, Switch to Desktop, and Sign Out</div>
+      </div>
+      <div class="phone-unit">
+        <div class="phone-shell">
+          <img src="screenshots/m4.jpg" alt="Reject order sheet">
+        </div>
+        <div class="phone-label">Reject Order sheet — written reason required before submitting rejection; Cancel returns to the order detail</div>
+      </div>
+    </div>
+
+    <div class="info-strip">
+      <div class="info-block">
+        <div class="ib-label">Text Size</div>
+        <div class="ib-val">5 levels (A– to A++) saved in local storage per user — persists across sessions</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Desktop Switch</div>
+        <div class="ib-val">One tap to access the full desktop interface from any mobile device</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Rejection Reason</div>
+        <div class="ib-val">Required text field — reason is logged and emailed to the submitter automatically</div>
+      </div>
+      <div class="info-block">
+        <div class="ib-label">Role Display</div>
+        <div class="ib-val">Color-coded role badge confirms the user's current access level at a glance</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-bottom:0">
+      <strong>Cross-Platform Icon Support — Crisp on Every Device</strong>
+      The home screen app icon is generated server-side from a high-resolution source and served at the exact pixel dimensions each device requires: 180 px for modern iPhones, 167 px for iPad Pro, 152 px for iPad mini, 120 px for older iPhones, and 192 / 512 px manifest icons for Android. All icons include a solid branded background so rounded-corner clipping renders correctly on iOS. The result is a professional, native-looking icon on every device — with no manual image resizing or separate upload required.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; 300 E. Gum St., Boonville, IN 47601 &nbsp;|&nbsp; 812-897-6588</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║         PAGE 13 — CONTACT & CTA         ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page" style="overflow:hidden">
+
+  <!-- Top navy hero -->
+  <div style="background:var(--navy);padding:.55in .6in .42in;text-align:center;position:relative;flex-shrink:0">
+    <div style="position:absolute;top:0;left:0;right:0;height:5px;background:var(--cyan)"></div>
+    <div style="position:absolute;bottom:0;right:0;width:180px;height:180px;border-top-left-radius:100%;background:rgba(41,182,213,.05);pointer-events:none"></div>
+    <div style="position:absolute;top:0;left:0;width:130px;height:130px;border-bottom-right-radius:100%;background:rgba(41,182,213,.04);pointer-events:none"></div>
+
+    <img src="mobile/icon_template.png" alt="WCSC Work Orders App Icon"
+         style="width:78px;height:78px;border-radius:18px;box-shadow:0 6px 24px rgba(0,0,0,.4);margin-bottom:.2in;display:block;margin-left:auto;margin-right:auto">
+
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:28pt;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.04em;line-height:1.1;margin-bottom:.1in">
+      Ready to Replace Your<br>Work Order System?
+    </div>
+    <div style="font-size:11pt;font-weight:300;color:rgba(255,255,255,.6);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.22in">
+      Purpose-Built &nbsp;·&nbsp; Modern &nbsp;·&nbsp; Mobile-First &nbsp;·&nbsp; Backed by People Who Know Your District
+    </div>
+    <div style="max-width:5.8in;margin:0 auto;font-size:9.5pt;color:rgba(255,255,255,.75);line-height:1.65">
+      If your current work order platform is expensive, slow, hard to use, or simply wasn't designed with school districts in mind —
+      this system was built to replace it. Every feature you just saw was developed specifically for Warrick County School Corporation,
+      and it's ready to be deployed for any district that needs a better way to manage facilities and technology requests.
+      No bloated licensing fees. No unnecessary complexity. Just a clean, fast, role-based system your staff will actually use.
+    </div>
+  </div>
+
+  <!-- Why switch — 4 cards -->
+  <div style="background:#f8fafc;padding:.28in .6in .22in;flex-shrink:0">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:10pt;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--cyan);text-align:center;margin-bottom:.15in">Why Districts Make the Switch</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.13in">
+
+      <div style="background:#fff;border:1px solid var(--gray-border);border-top:4px solid var(--cyan);border-radius:0 0 8px 8px;padding:.14in .15in">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12pt;font-weight:700;color:var(--navy);margin-bottom:5px">No More Overpaying</div>
+        <div style="font-size:7.5pt;color:var(--text-muted);line-height:1.5">Legacy work order platforms charge thousands per year in licensing, per-seat fees, and support contracts. This system eliminates that overhead entirely.</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--gray-border);border-top:4px solid #059669;border-radius:0 0 8px 8px;padding:.14in .15in">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12pt;font-weight:700;color:var(--navy);margin-bottom:5px">Zero Training Curve</div>
+        <div style="font-size:7.5pt;color:var(--text-muted);line-height:1.5">Staff sign in with the Google accounts they already use every day. The interface is clean, intuitive, and role-scoped — users only see exactly what they need.</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--gray-border);border-top:4px solid #d97706;border-radius:0 0 8px 8px;padding:.14in .15in">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12pt;font-weight:700;color:var(--navy);margin-bottom:5px">Built for the Field</div>
+        <div style="font-size:7.5pt;color:var(--text-muted);line-height:1.5">Most systems treat mobile as an afterthought. This one treats it as a first-class experience — custodians, technicians, and maintenance workers get a dedicated PWA with push notifications.</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--gray-border);border-top:4px solid #7c3aed;border-radius:0 0 8px 8px;padding:.14in .15in">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12pt;font-weight:700;color:var(--navy);margin-bottom:5px">Yours to Own</div>
+        <div style="font-size:7.5pt;color:var(--text-muted);line-height:1.5">No vendor lock-in. No hidden renewal fees. The system is custom-built and can be tailored to your district's specific workflow, buildings, and staff structure.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Contact cards -->
+  <div style="background:#fff;padding:.22in .6in .18in;flex:1">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:10pt;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--cyan);text-align:center;margin-bottom:.16in">Get in Touch — We'd Love to Talk</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.2in;margin-bottom:.18in">
+
+      <!-- Noah -->
+      <div style="border:1px solid var(--gray-border);border-radius:12px;padding:.2in .22in;display:flex;flex-direction:column;align-items:center;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+        <div style="width:58px;height:58px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;margin-bottom:.12in;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.18)">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:20pt;font-weight:800;color:var(--cyan)">NS</span>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:17pt;font-weight:700;color:var(--navy);margin-bottom:2px">Noah Smith</div>
+        <div style="font-size:8pt;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:.1in">Lead Developer &amp; System Architect</div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:var(--cyan-light);border:1px solid var(--cyan-muted);border-radius:6px;padding:6px 14px">
+          <span style="font-size:9pt;color:var(--cyan-dark)">&#9993;</span>
+          <span style="font-size:9pt;font-weight:600;color:var(--navy)">nrsmith14605@gmail.com</span>
+        </div>
+      </div>
+
+      <!-- Derik -->
+      <div style="border:1px solid var(--gray-border);border-radius:12px;padding:.2in .22in;display:flex;flex-direction:column;align-items:center;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+        <div style="width:58px;height:58px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;margin-bottom:.12in;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.18)">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:20pt;font-weight:800;color:var(--cyan)">DS</span>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:17pt;font-weight:700;color:var(--navy);margin-bottom:2px">Derik Smith</div>
+        <div style="font-size:8pt;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:.1in">Product Advisor &amp; Marketing Coordinator</div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:var(--cyan-light);border:1px solid var(--cyan-muted);border-radius:6px;padding:6px 14px">
+          <span style="font-size:9pt;color:var(--cyan-dark)">&#9993;</span>
+          <span style="font-size:9pt;font-weight:600;color:var(--navy)">dsmith@warrick.k12.in.us</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CTA strip -->
+    <div style="background:var(--navy);border-radius:10px;padding:.18in .24in;display:flex;align-items:center;justify-content:space-between;gap:.2in">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:14pt;font-weight:700;color:var(--cyan);margin-bottom:4px">We're available anytime — at your location.</div>
+        <div style="font-size:8.5pt;color:rgba(255,255,255,.7);line-height:1.5;max-width:4.8in">
+          We're happy to come to your district, walk your team through a live demo, answer technical questions, and discuss how this system can be configured for your buildings, roles, and workflow.
+          There's no pressure — just a conversation about whether this is the right fit for you.
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:center">
+        <img src="mobile/icon_template.png" alt="" style="width:48px;height:48px;border-radius:11px;display:block;margin:0 auto .08in;opacity:.9">
+        <div style="font-size:7pt;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em">WCSC Work Orders</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div style="border-top:1px solid var(--gray-border);padding:.09in .5in;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="font-size:7.5pt;color:var(--text-muted)">Noah Smith &nbsp;·&nbsp; nrsmith14605@gmail.com &nbsp;&nbsp;|&nbsp;&nbsp; Derik Smith &nbsp;·&nbsp; dsmith@warrick.k12.in.us</div>
+    <div style="font-size:7.5pt;color:var(--cyan);font-weight:600;letter-spacing:.04em">wcscworkorder.com</div>
+  </div>
+
+</div>
+
+
+</body>
+</html>

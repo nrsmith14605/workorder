@@ -463,7 +463,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aab0bb;margin-bottom:5px"><?= $category ?></div>
                             <div style="display:flex;flex-wrap:wrap;gap:6px">
                                 <?php foreach ($blist as $b): ?>
-                                <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;cursor:pointer;padding:4px 10px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;transition:all .12s" class="bldg-check-label">
+                                <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;cursor:pointer;padding:4px 10px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;transition:all .12s;min-width:70px" class="bldg-check-label">
                                     <input type="checkbox" name="buildings[]" value="<?= $b ?>" class="bldg-checkbox" style="accent-color:var(--cyan);width:14px;height:14px"> <?= $b ?>
                                 </label>
                                 <?php endforeach; ?>
