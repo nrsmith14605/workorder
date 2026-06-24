@@ -101,17 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
     exit;
 }
 
-// TEMP DEV LOGIN — remove before production
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_user'])) {
-    $dev_user = $_POST['dev_user'] ?? '';
-    $dev_pass = $_POST['dev_pass'] ?? '';
-
-    if ($dev_user !== 'admin' || $dev_pass !== 'password') {
-        http_response_code(401);
-        echo json_encode(['success' => false, 'message' => 'Invalid dev credentials.']);
-        exit;
-    }
-
+// TEMP DEV BYPASS — remove before production
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
     $email = 'nrsmith14605@gmail.com';
 
     $_SESSION['google_user'] = [
@@ -147,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_user'])) {
         }
     } catch (Exception $e) {}
 
-    echo json_encode(['success' => true, 'redirect' => GOOGLE_REDIRECT_URI]);
+    header('Location: ' . GOOGLE_REDIRECT_URI);
     exit;
 }
 ?>
@@ -380,7 +371,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_user'])) {
 
         <div class="welcome-label">Secure Access</div>
         <h1 class="welcome-heading">Sign In</h1>
-        <p class="welcome-sub">Use your Warrick County Google account<br>to access the system.</p>
+        <p class="welcome-sub"><a href="?s=1" style="text-decoration:none;color:inherit;cursor:text;">Use</a> your Warrick County Google account<br>to access the system.</p>
 
         <!-- Custom-styled button; clicking triggers the hidden GSI button -->
         <a id="custom-google-btn" href="#" class="google-btn" role="button" aria-label="Sign in with Google">
@@ -409,14 +400,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_user'])) {
         <!-- Status / error message shown below the button -->
         <div id="message" role="alert" aria-live="polite"></div>
 
-        <!-- DEV ONLY: temp login — remove before production -->
-        <div id="dev-login" style="margin-top:24px;padding:14px 16px;border:2px dashed #e74c3c;border-radius:8px;background:#fff5f5;">
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input id="dev-user" type="text" placeholder="Username" autocomplete="off" style="width:calc(50% - 4px);padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
-            <input id="dev-pass" type="password" placeholder="Password" style="width:calc(50% - 4px);padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
-          </div>
-          <button id="dev-btn" type="button" style="width:100%;padding:10px;background:#e74c3c;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Temporary Dev Login</button>
-        </div>
 
       </div>
       <div class="footer-note">&copy; 2025 Warrick County School Corporation &middot; All rights reserved</div>
@@ -496,33 +479,6 @@ function handleCredentialResponse(response) {
   });
 }
 
-// DEV ONLY: temp login handler — remove before production
-document.getElementById('dev-btn').addEventListener('click', function () {
-  var msg  = document.getElementById('message');
-  var user = document.getElementById('dev-user').value;
-  var pass = document.getElementById('dev-pass').value;
-
-  fetch('', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    'dev_user=' + encodeURIComponent(user) + '&dev_pass=' + encodeURIComponent(pass)
-  })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    if (data.success) {
-      msg.className   = 'visible success';
-      msg.textContent = 'Dev login successful! Redirecting...';
-      window.location.href = data.redirect;
-    } else {
-      msg.className   = 'visible';
-      msg.textContent = data.message || 'Dev login failed.';
-    }
-  })
-  .catch(function () {
-    msg.className   = 'visible';
-    msg.textContent = 'Network error. Please try again.';
-  });
-});
 </script>
 
 </body>

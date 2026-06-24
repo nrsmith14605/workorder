@@ -724,6 +724,59 @@ table.rt{
 
 .callout strong{font-weight:700;display:block;margin-bottom:3px}
 
+/* ── APP HEADER MOCKUP ───────────────────── */
+.app-header-mock{
+  background:#0B1F2E;
+  border-radius:10px;
+  padding:10px 16px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:0.16in;
+}
+.app-header-mock img{height:28px;width:auto;display:block}
+.app-header-mock-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:14pt;
+  font-weight:700;
+  color:#fff;
+  letter-spacing:0.02em;
+}
+.app-header-mock-title span{color:#29b6d5}
+.mock-label{
+  font-size:7pt;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  color:var(--text-muted);
+  text-align:center;
+  margin-top:4px;
+  margin-bottom:0.15in;
+}
+
+/* ── PUSH NOTIF DEMO ─────────────────────── */
+.notif-demo{
+  background:#1a3a56;
+  border:1px solid #29b6d5;
+  border-radius:10px;
+  padding:10px 14px;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:0.1in;
+}
+.notif-demo-icon{
+  width:36px;height:36px;border-radius:8px;
+  background:#0B1F2E;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.notif-demo-icon img{width:28px;height:auto}
+.notif-demo-body{}
+.notif-demo-title{font-size:8.5pt;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.notif-demo-sub{font-size:7.5pt;color:#94a3b8;line-height:1.4}
+
 </style>
 </head>
 <body>
@@ -751,8 +804,10 @@ table.rt{
     <div class="cover-pills">
       <span class="cover-pill">Google SSO Authentication</span>
       <span class="cover-pill">Role-Based Access Control</span>
-      <span class="cover-pill">Mobile PWA</span>
-      <span class="cover-pill">Automated Notifications</span>
+      <span class="cover-pill">Mobile PWA — iOS &amp; Android</span>
+      <span class="cover-pill">Push Notifications</span>
+      <span class="cover-pill">Offline Mode</span>
+      <span class="cover-pill">Automated Email Notifications</span>
       <span class="cover-pill">PDF Reporting Suite</span>
       <span class="cover-pill">District-Wide Coverage</span>
     </div>
@@ -1247,22 +1302,23 @@ table.rt{
       <div>
         <div class="subsection-head" style="margin-top:0">Progressive Web App (PWA)</div>
         <ul class="blist">
-          <li><strong>Install to home screen</strong> on iOS and Android devices — works like a native app, no App Store required</li>
-          <li><strong>Standalone display</strong> with no browser chrome — full-screen experience once installed</li>
-          <li><strong>Automatic redirect</strong> — field-role users on mobile devices go directly to the mobile dashboard without any extra steps</li>
-          <li><strong>Desktop escape</strong> — a "Switch to Desktop" option is always available for field workers who need full access</li>
-          <li><strong>District branding</strong> — WCSC gear icon appears on the user's home screen after installation</li>
+          <li><strong>Install to home screen</strong> on iOS and Android — works like a native app with full icon support on both platforms</li>
+          <li><strong>Cross-platform icons</strong> — dedicated apple-touch-icon sizes (120, 152, 167, 180 px) ensure crisp icons on all iPhone and iPad models</li>
+          <li><strong>Offline mode</strong> — service worker caches fonts and icons; if connectivity drops, a branded offline page appears rather than a browser error</li>
+          <li><strong>Push notifications</strong> — field workers receive real-time alerts when orders are assigned or updated, even when the app is closed</li>
+          <li><strong>Standalone display</strong> — no browser chrome once installed; back-button and swipe gestures handled natively within the app</li>
+          <li><strong>Automatic redirect</strong> — field-role users on mobile go directly to the mobile dashboard without extra steps</li>
         </ul>
       </div>
       <div>
         <div class="subsection-head" style="margin-top:0">Mobile Dashboard Features</div>
         <ul class="blist">
           <li><strong>Priority-sorted card view</strong> — Urgent orders surface first, then High, Mid, Low; within priority, oldest orders appear first</li>
-          <li><strong>Status filtering</strong> — toggle between In Progress, Approved, and Completed views with a single tap</li>
-          <li><strong>In-field notes</strong> — add text notes to an order from the job site in real time</li>
-          <li><strong>Photo upload from device</strong> — attach photos directly from the camera or photo library</li>
-          <li><strong>Mark complete</strong> — field workers can mark their assigned orders complete from the mobile view; managers confirm from the desktop</li>
-          <li><strong>Role-aware scope</strong> — workers see only their assigned orders; Maintenance Manager sees all open maintenance orders</li>
+          <li><strong>Starred orders</strong> — workers can star the order they are actively working on; starred orders float to the top of the list and persist across sessions</li>
+          <li><strong>Camera &amp; gallery uploads</strong> — attach photos by taking a live photo or selecting from the device library; up to 5 images per submission with instant thumbnail preview</li>
+          <li><strong>In-field notes</strong> — add timestamped notes to any order from the job site in real time</li>
+          <li><strong>Adjustable text size</strong> — five font-size levels (8 through 16) let workers set a comfortable reading size that persists across sessions</li>
+          <li><strong>Mark complete</strong> — field workers mark assigned orders complete from mobile; managers confirm from the desktop</li>
         </ul>
       </div>
     </div>
@@ -1299,6 +1355,99 @@ table.rt{
   </div>
   <div class="page-footer">
     <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; 300 E. Gum St., Boonville, IN 47601 &nbsp;|&nbsp; 812-897-6588</div>
+    <div class="pf-website">wcscworkorder.com</div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║     PAGE 7 — MOBILE PWA: ADVANCED       ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="page">
+  <div class="page-header">
+    <img src="images/logo.png" class="ph-logo" alt="WCSC Logo">
+    <div class="ph-right">
+      <div class="ph-org">Warrick County School Corporation</div>
+      <div class="ph-sub">Work Order Management System</div>
+    </div>
+  </div>
+  <div class="page-accent"></div>
+  <div class="page-body">
+
+    <div class="section-eyebrow">Mobile Platform — Recent Enhancements</div>
+    <div class="section-title">Progressive Web App: Advanced Capabilities</div>
+    <div class="section-rule"></div>
+
+    <!-- App header mockup using the custom logo -->
+    <div class="app-header-mock">
+      <img src="images/top_logo.png" alt="WCSC Work Orders Logo">
+      <div class="app-header-mock-title">WCSC <span>Work Orders</span></div>
+    </div>
+    <div class="mock-label">Mobile dashboard header — installed app appearance on Android &amp; iPhone</div>
+
+    <div class="feature-grid">
+
+      <div class="fc">
+        <div class="fc-title">Cross-Platform Icon Support</div>
+        <div class="fc-body">The home screen icon is generated server-side from a high-resolution source and served at the exact pixel dimensions each device requires — 180 px for modern iPhones, 167 px for iPad Pro, 152 px for iPad mini, and 120 px for older iPhones. Android uses 192 px and 512 px manifest icons. All icons include a solid branded background so rounded-corner transparency renders correctly on iOS.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Offline Mode</div>
+        <div class="fc-body">A registered service worker intercepts all network requests. Static assets — icons and web fonts — are served from cache on every load for instant display. If a worker loses connectivity while navigating between orders, a branded "You're Offline" page is shown rather than a browser error. Assets are pre-cached during service worker installation and updated automatically when a new version is deployed.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Push Notifications</div>
+        <div class="fc-body">Workers are prompted once to enable push notifications. Subscriptions are stored per-user in the database. When an order is assigned or a status changes, the system sends a Web Push notification that appears on the device lock screen — even when the app is closed. Tapping the notification opens the app directly to the relevant work order.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Starred / Priority Orders</div>
+        <div class="fc-body">A star button on each active order card lets workers "pin" the job they are currently working on. Starred orders float to the top of the dashboard list above all other priority-sorted cards. Stars are stored in device local storage per user and persist across sessions and app restarts — no server round-trip required, and the re-sort happens instantly on tap.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Camera &amp; Gallery Photo Upload</div>
+        <div class="fc-body">Workers can attach up to five photos per update using either the device camera (live capture) or the photo library. Photos are read immediately into memory using the FileReader API — ensuring thumbnail previews remain stable regardless of the order images are selected. Both a camera capture and a gallery image can be attached in the same submission without either preview disappearing.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Native Navigation &amp; Gestures</div>
+        <div class="fc-body">The photo lightbox viewer pushes a browser history state when opened, so the Android back button and iOS edge-swipe gesture close the viewer rather than navigating away from the work order. Left/right swipe gestures move between multiple attached photos within the lightbox. Tap outside or use the close button to dismiss.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Adjustable Text Size</div>
+        <div class="fc-body">A five-level font size picker (8, 10, 12, 14, 16) in the profile sheet lets every worker choose a comfortable reading size. The selected size applies immediately across all text on the dashboard and order detail pages and is remembered across sessions via local storage. The default size is set to 12 — larger than standard web defaults — for comfortable field reading.</div>
+      </div>
+
+      <div class="fc">
+        <div class="fc-title">Optimized Asset Delivery</div>
+        <div class="fc-body">All icons and logos are dynamically resized from high-resolution source files by a PHP image pipeline (Imagick / GD) and cached on the server at the correct output dimensions. A 1.3 MB source logo is served to mobile devices as a 64 px tall PNG of under 10 KB. Long-lived cache headers ensure assets are not re-downloaded on repeat visits.</div>
+      </div>
+
+    </div>
+
+    <!-- Push notification visual demo -->
+    <div class="notif-demo">
+      <div class="notif-demo-icon">
+        <img src="images/top_logo.png" alt="">
+      </div>
+      <div class="notif-demo-body">
+        <div class="notif-demo-title">Work Order Update — WO-000147</div>
+        <div class="notif-demo-sub">You have been assigned a new Maintenance order at John H. Castle Elementary — Room 204. Tap to view details.</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-bottom:0">
+      <strong>Zero-Configuration Updates</strong>
+      Because the mobile app is delivered as a Progressive Web App through the browser, every enhancement — new features, icon changes, offline support, push notifications — reaches all users automatically the next time they open the app. No app store submission, no version management, and no action required from IT or end users.
+    </div>
+
+  </div>
+  <div class="page-footer">
+    <div class="pf-text">Warrick County School Corporation &nbsp;|&nbsp; Software Capabilities &amp; Features Overview</div>
     <div class="pf-website">wcscworkorder.com</div>
   </div>
 </div>
