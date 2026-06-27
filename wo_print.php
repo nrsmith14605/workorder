@@ -83,7 +83,7 @@ require_once __DIR__ . '/dompdf/vendor/autoload.php';
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
-$logo_path = __DIR__ . '/images/logo.png';
+$logo_path = __DIR__ . '/images/white_logo.png';
 $logo_src  = file_exists($logo_path)
     ? 'data:image/png;base64,' . base64_encode(file_get_contents($logo_path))
     : '';
@@ -95,18 +95,14 @@ function wo_print_fmt_date(?string $d): string {
 $css = '
 @page { margin: 1in 0 0 0; }
 body { font-family: Helvetica, Arial, sans-serif; margin: 0; padding: 0; font-size: 9pt; color: #222; }
-.header { background: #0B1F2E; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; margin-top: -1in; }
-.header-inner { display: table-cell; vertical-align: middle; }
-.header-logo { float: left; padding-top: 6px; }
-.header-logo img { height: 0.75in; width: auto; }
-.header-text { margin-left: 90px; padding-top: 14px; }
-.header-org { color: #fff; font-size: 18pt; font-weight: bold; margin: 0; line-height: 1.2; }
-.header-sub { color: #29b6d5; font-size: 10pt; margin: 4px 0 0 0; }
-.header-accent { background: #29b6d5; height: 3px; width: 100%; }
+.header { background: #19304e; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; margin-top: -1in; }
+.header-inner { display: table-cell; vertical-align: middle; padding-top: 0.15in; }
+.header-org { color: #ffffff; font-size: 24pt; font-weight: bold; margin: 0; line-height: 1.2; }
+.header-sub { color: #ffffff; font-size: 11pt; font-weight: normal; margin: 5px 0 0 0; opacity: .82; }
 .content { margin: 0.3in 0.5in 0.85in; }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
     font-size: 7.5pt; color: #666; padding: 10px 0; border-top: 1px solid #ddd; background: #fff; }
-.wo-title { font-size: 16pt; font-weight: bold; color: #0B1F2E; margin: 0 0 4px; }
+.wo-title { font-size: 16pt; font-weight: bold; color: #19304e; margin: 0 0 4px; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 7.5pt; font-weight: bold; }
 .badge-pending    { background: #fef3c7; color: #92400e; }
 .badge-approved   { background: #d1fae5; color: #065f46; }
@@ -114,13 +110,13 @@ body { font-family: Helvetica, Arial, sans-serif; margin: 0; padding: 0; font-si
 .badge-completed  { background: #f0fdf4; color: #166534; }
 .badge-rejected   { background: #fee2e2; color: #991b1b; }
 .section-head { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: .07em;
-    color: #0B1F2E; border-bottom: 2px solid #0B1F2E; padding-bottom: 4px; margin: 18px 0 10px; }
+    color: #19304e; border-bottom: 2px solid #19304e; padding-bottom: 4px; margin: 18px 0 10px; }
 .field-grid { width: 100%; border-collapse: collapse; margin-bottom: 0; }
 .field-grid td { padding: 4px 12px 8px 0; vertical-align: top; }
 .field-label { font-size: 7pt; font-weight: bold; text-transform: uppercase;
     letter-spacing: .07em; color: #aab0bb; display: block; margin-bottom: 2px; }
 .field-value { font-size: 9pt; color: #1a1a2e; font-weight: 500; }
-.desc-box { background: #f8f9fa; border-left: 3px solid #0B1F2E; padding: 10px 14px;
+.desc-box { background: #f8f9fa; border-left: 3px solid #19304e; padding: 10px 14px;
     font-size: 9pt; color: #3d4f5e; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
 .log-box  { background: #f8f9fa; border: 1px solid #e8ecf0; padding: 10px 14px;
     font-size: 8pt; color: #555; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
@@ -139,17 +135,18 @@ $pri_colors = ['Low' => '#6b7a8d', 'Mid' => '#2563eb', 'High' => '#d97706', 'Urg
 
 $status   = $order['status'];
 $priority = $order['priority'] ?? '—';
-$logo_tag = $logo_src ? '<img src="' . $logo_src . '" alt="WCSC Logo">' : '';
+$logo_tag = $logo_src ? '<img src="' . $logo_src . '" alt="WCSC Logo" style="height:0.75in;width:auto;">' : '';
 
 $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' . $css . '</style></head><body>
 <div class="header"><div class="header-inner">
-  <div class="header-logo">' . $logo_tag . '</div>
-  <div class="header-text">
-    <p class="header-org">Warrick County School Corporation</p>
-    <p class="header-sub">Work Order Management System</p>
-  </div>
+  <table style="border-collapse:collapse;width:auto;margin:0;border:0"><tr>
+    <td style="padding:0;vertical-align:middle;text-align:left;width:66px;background:transparent;border:0">' . $logo_tag . '</td>
+    <td style="padding:0 0 0 18px;vertical-align:middle;background:transparent;border:0">
+      <p class="header-org">Warrick County School Corporation</p>
+      <p class="header-sub">Work Order Management System</p>
+    </td>
+  </tr></table>
 </div></div>
-<div class="header-accent"></div>
 <div class="footer">Warrick County School Corporation &nbsp;|&nbsp; 300 E. Gum St., Boonville, IN 47601 &nbsp;|&nbsp; 812-897-6588</div>
 <div class="content">
 

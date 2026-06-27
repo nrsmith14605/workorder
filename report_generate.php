@@ -41,7 +41,7 @@ $role_labels = [
 ];
 
 // ── Logo ──────────────────────────────────────────────────────────────────────
-$logo_path = __DIR__ . '/images/logo.png';
+$logo_path = __DIR__ . '/images/white_logo.png';
 $logo_src  = file_exists($logo_path)
     ? 'data:image/png;base64,' . base64_encode(file_get_contents($logo_path))
     : '';
@@ -367,48 +367,45 @@ $db->close();
 $css = '
 @page { margin: 1in 0 0 0; }
 body { font-family: Helvetica, Arial, sans-serif; margin: 0; padding: 0; font-size: 9pt; color: #222; }
-.header { background: #0B1F2E; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; margin-top: -1in; }
-.header-inner { display: table-cell; vertical-align: middle; }
-.header-logo { float: left; padding-top: 6px; }
-.header-logo img { height: 0.75in; width: auto; }
-.header-text { margin-left: 90px; padding-top: 14px; }
-.header-org { color: #fff; font-size: 18pt; font-weight: bold; margin: 0; line-height: 1.2; }
-.header-sub { color: #29b6d5; font-size: 10pt; margin: 4px 0 0 0; }
-.header-accent { background: #29b6d5; height: 3px; width: 100%; }
+.header { background: #19304e; width: 100%; padding: 0 0.5in; height: 1.1in; display: table; margin-top: -1in; }
+.header-inner { display: table-cell; vertical-align: middle; padding-top: 0.15in; }
+.header-org { color: #ffffff; font-size: 24pt; font-weight: bold; margin: 0; line-height: 1.2; }
+.header-sub { color: #ffffff; font-size: 11pt; font-weight: normal; margin: 5px 0 0 0; opacity: .82; }
 .content { margin: 0.3in 0.5in 0.85in; }
-.filter-box { background: #f3f4f6; padding: 10px 14px; margin-bottom: 14px; border-left: 4px solid #0B1F2E; }
-.filter-label { font-weight: bold; color: #0B1F2E; font-size: 9pt; margin-bottom: 3px; }
+.filter-box { background: #f3f4f6; padding: 10px 14px; margin-bottom: 14px; border-left: 4px solid #19304e; }
+.filter-label { font-weight: bold; color: #19304e; font-size: 9pt; margin-bottom: 3px; }
 .filter-detail { color: #555; font-size: 8pt; line-height: 1.5; }
 .section-head { font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: .07em;
-    color: #0B1F2E; border-bottom: 2px solid #0B1F2E; padding-bottom: 4px; margin: 20px 0 8px; }
+    color: #19304e; border-bottom: 2px solid #19304e; padding-bottom: 4px; margin: 20px 0 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-top: 8px; }
-thead th { background: #0B1F2E; color: #fff; padding: 7px 8px; text-align: left;
-    font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; border: 1px solid #0B1F2E; }
+thead th { background: #19304e; color: #fff; padding: 7px 8px; text-align: left;
+    font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; border: 1px solid #19304e; }
 tbody td { padding: 7px 8px; border: 1px solid #d1d5db; vertical-align: top; color: #222; }
 tbody tr:nth-child(odd) td { background: #f9fafb; }
 tbody tr:nth-child(even) td { background: #fff; }
 .no-data { padding: 20px 0; color: #888; font-size: 9pt; }
 .stat-table { border-collapse: separate; border-spacing: 8px 6px; margin-bottom: 14px; width: auto; }
-.stat-table td { background: #e6f7fb !important; border: 1px solid #b3e0ed;
+.stat-table td { background: #eaeff6 !important; border: 1px solid #c5cfe0;
     border-radius: 6px; padding: 7px 14px; font-size: 9pt; vertical-align: top; }
-.stat-val { font-size: 16pt; font-weight: bold; color: #0B1F2E; line-height: 1.1; }
+.stat-val { font-size: 16pt; font-weight: bold; color: #19304e; line-height: 1.1; }
 .stat-lbl { font-size: 7.5pt; color: #6b7a8d; }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
     font-size: 7.5pt; color: #666; padding: 10px 0; border-top: 1px solid #ddd; background: #fff; }
 ';
 
 // ── Shared header HTML ────────────────────────────────────────────────────────
-$logo_tag = $logo_src ? '<img src="' . $logo_src . '" alt="WCSC Logo">' : '';
+$logo_tag = $logo_src ? '<img src="' . $logo_src . '" alt="WCSC Logo" style="height:0.75in;width:auto;">' : '';
 
 $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' . $css . '</style></head><body>
 <div class="header"><div class="header-inner">
-  <div class="header-logo">' . $logo_tag . '</div>
-  <div class="header-text">
-    <p class="header-org">Warrick County School Corporation</p>
-    <p class="header-sub">Work Order Management System</p>
-  </div>
+  <table style="border-collapse:collapse;width:auto;margin:0;border:0"><tr>
+    <td style="padding:0;vertical-align:middle;text-align:left;width:66px;background:transparent;border:0">' . $logo_tag . '</td>
+    <td style="padding:0 0 0 18px;vertical-align:middle;background:transparent;border:0">
+      <p class="header-org">Warrick County School Corporation</p>
+      <p class="header-sub">Work Order Management System</p>
+    </td>
+  </tr></table>
 </div></div>
-<div class="header-accent"></div>
 <div class="footer">Warrick County School Corporation &nbsp;|&nbsp; 300 E. Gum St., Boonville, IN 47601 &nbsp;|&nbsp; 812-897-6588</div>
 <div class="content">
 <div class="filter-box">
@@ -522,15 +519,16 @@ switch ($report_type) {
                 $html .= '<div style="page-break-before:always;margin-top:-1in">'
                     . '<div class="header" style="margin-top:0">'
                     . '<div class="header-inner">'
-                    . '  <div class="header-logo">' . ($logo_tag ?: '') . '</div>'
-                    . '  <div class="header-text">'
-                    . '    <p class="header-org">Warrick County School Corporation</p>'
-                    . '    <p class="header-sub">Work Order Management System</p>'
-                    . '  </div>'
+                    . '<table style="border-collapse:collapse;width:auto;margin:0;border:0"><tr>'
+                    . '<td style="padding:0;vertical-align:middle;text-align:left;width:66px;background:transparent;border:0">' . ($logo_tag ?: '') . '</td>'
+                    . '<td style="padding:0 0 0 18px;vertical-align:middle;background:transparent;border:0">'
+                    . '<p class="header-org">Warrick County School Corporation</p>'
+                    . '<p class="header-sub">Work Order Management System</p>'
+                    . '</td>'
+                    . '</tr></table>'
                     . '</div>'
                     . '</div>'
                     . '</div>';
-                $html .= '<div class="header-accent"></div>';
 
                 // Per-employee filter box
                 $html .= '<div class="content"><div class="filter-box">'
@@ -772,7 +770,7 @@ switch ($report_type) {
                     $html .= '<tr>
                         <td><strong>' . htmlspecialchars($w['first_name'] . ' ' . $w['last_name']) . '</strong></td>
                         <td style="text-align:center">' . $assigned . '</td>
-                        <td style="text-align:center;font-weight:bold;color:#0B1F2E">' . $completed . '</td>
+                        <td style="text-align:center;font-weight:bold;color:#19304e">' . $completed . '</td>
                         <td style="text-align:center;color:' . ($in_prog > 0 ? '#d97706' : '#374151') . '">' . $in_prog . '</td>
                         <td style="text-align:center;font-weight:bold;color:' . $avg_color . '">' . $avg_days . '</td>
                         <td style="text-align:center;font-weight:bold;color:' . $rate_color . '">' . $rate . '</td>
