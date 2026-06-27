@@ -1,4 +1,5 @@
-var CACHE = 'wcsc-v1';
+var VERSION = '2';
+var CACHE = 'wcsc-v' + VERSION;
 var OFFLINE_URL = '/workorder/mobile/offline.html';
 
 self.addEventListener('install', function(event) {

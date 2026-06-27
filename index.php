@@ -75,17 +75,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_token'])) {
             $_SESSION['db_debug'] = 'Connect failed: ' . $conn->connect_error;
         } else {
             $conn->set_charset('utf8mb4');
-            $stmt = $conn->prepare("SELECT role, building FROM users WHERE email = ? AND active = 1 LIMIT 1");
+            $stmt = $conn->prepare("SELECT role, building, last_building FROM users WHERE email = ? AND active = 1 LIMIT 1");
             if (!$stmt) {
                 $_SESSION['db_debug'] = 'Prepare failed: ' . $conn->error;
             } else {
                 $stmt->bind_param('s', $email);
                 $stmt->execute();
-                $stmt->bind_result($db_role, $db_building);
+                $stmt->bind_result($db_role, $db_building, $db_last_building);
                 if ($stmt->fetch()) {
-                    $_SESSION['user_role']     = $db_role;
-                    $_SESSION['user_building'] = $db_building;
-                    $_SESSION['db_debug']      = 'OK: found role=' . $db_role;
+                    $_SESSION['user_role']          = $db_role;
+                    $_SESSION['user_building']      = $db_building;
+                    $_SESSION['user_last_building'] = $db_last_building;
+                    $_SESSION['db_debug']           = 'OK: found role=' . $db_role;
                 } else {
                     $_SESSION['db_debug'] = 'No row found for email: ' . $email;
                 }
@@ -123,14 +124,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
         if (!$conn->connect_error) {
             $conn->set_charset('utf8mb4');
-            $stmt = $conn->prepare("SELECT role, building FROM users WHERE email = ? AND active = 1 LIMIT 1");
+            $stmt = $conn->prepare("SELECT role, building, last_building FROM users WHERE email = ? AND active = 1 LIMIT 1");
             if ($stmt) {
                 $stmt->bind_param('s', $email);
                 $stmt->execute();
-                $stmt->bind_result($db_role, $db_building);
+                $stmt->bind_result($db_role, $db_building, $db_last_building);
                 if ($stmt->fetch()) {
-                    $_SESSION['user_role']     = $db_role;
-                    $_SESSION['user_building'] = $db_building;
+                    $_SESSION['user_role']          = $db_role;
+                    $_SESSION['user_building']      = $db_building;
+                    $_SESSION['user_last_building'] = $db_last_building;
                 }
                 $stmt->close();
             }
@@ -187,19 +189,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
   .mobile-topbar { display: none; visibility: hidden; }
 
   @media (max-width: 768px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
-    body { background: #fff; }
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      margin: 0;
+      background: #fff;
+    }
 
     .page {
-      display: block;
-      min-height: 100vh;
+      height: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
       padding: 0;
     }
 
     .card {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      height: auto;
+      max-width: none;
       border-radius: 0;
       box-shadow: none;
-      min-height: 100vh;
+      overflow: visible;
       width: 100%;
     }
 
@@ -216,12 +232,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
     }
 
     .right {
-      width: 100%;
-      height: 100vh;
-      height: 100dvh;
+      flex: 1;
       display: flex;
       flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
       padding: 0;
+      position: relative;
+      width: 100%;
+      min-height: 0;
     }
 
     .right-inner {
@@ -229,6 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
       display: flex;
       flex-direction: column;
       justify-content: center;
+      align-items: center;
       padding: 32px 32px 24px;
       width: 100%;
       max-width: 360px;
@@ -297,21 +317,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['s'] ?? '') === '1') {
     }
 
     .footer-note {
-      background: #0B1F2E;
-      color: rgba(255,255,255,.35) !important;
-      text-align: center;
-      font-size: 11px !important;
+      position: relative !important;
+      bottom: auto !important;
+      flex-shrink: 0;
+      width: 100% !important;
       height: 44px;
       display: flex !important;
       align-items: center;
       justify-content: center;
+      background: #0B1F2E;
+      color: rgba(255,255,255,.35) !important;
+      font-size: 11px !important;
+      text-align: center;
       padding: 0 20px !important;
       margin: 0 !important;
-      flex-shrink: 0;
-      width: 100vw !important;
-      position: relative;
-      left: 50%;
-      transform: translateX(-50%);
+      left: auto;
+      transform: none;
     }
   }
 

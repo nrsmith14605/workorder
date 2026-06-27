@@ -44,20 +44,20 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
 .step-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--navy);margin-bottom:6px;letter-spacing:.01em}
 .step-desc{font-size:14px;color:#3d4f5e;line-height:1.65;margin-bottom:14px}
 .step-desc strong{color:var(--navy);font-weight:700}
-.step-img{width:100%;background:#fff;border:2px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:28px 16px;color:var(--muted)}
-.step-img svg{opacity:.35}
-.step-img-label{font-size:12px;font-weight:600;color:var(--muted);text-align:center;line-height:1.4}
-.step-img.tall{min-height:220px}
-.step-img.short{min-height:140px}
+
+.screenshot{display:block;width:100%;max-width:300px;margin:14px auto 0;border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.10);border:1px solid rgba(0,0,0,.08)}
+.screenshot-pair{display:flex;gap:12px;margin-top:14px;justify-content:center}
+.screenshot-pair .screenshot{margin-top:0;flex:1;max-width:220px}
 
 .tip{display:flex;align-items:flex-start;gap:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:12px}
 .tip svg{color:#f59e0b;flex-shrink:0;margin-top:1px}
 .tip p{font-size:13px;color:#92400e;line-height:1.5}
 .tip p strong{font-weight:700}
 
-.or-divider{display:flex;align-items:center;gap:10px;margin:12px 0}
-.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border)}
-.or-divider span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.important{display:flex;align-items:flex-start;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-top:12px}
+.important svg{color:#3b82f6;flex-shrink:0;margin-top:1px}
+.important p{font-size:13px;color:#1e40af;line-height:1.5}
+.important p strong{font-weight:700}
 
 .page-footer{background:var(--navy);padding:24px;text-align:center}
 .page-footer p{font-size:12px;color:rgba(255,255,255,.35);line-height:1.7}
@@ -67,6 +67,8 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
     .hero h1{font-size:28px}
     .step{grid-template-columns:40px 1fr;gap:0 14px}
     .step-num{width:40px;height:40px;font-size:18px}
+    .screenshot-pair{flex-direction:column;align-items:center}
+    .screenshot-pair .screenshot{max-width:280px}
 }
 </style>
 </head>
@@ -78,7 +80,7 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
             <div class="header-sub">Warrick County School Corporation</div>
             <div class="header-title">Work Order System</div>
         </div>
-        <div class="header-badge">Setup Guide</div>
+        <div class="header-badge">Android Setup Guide</div>
     </div>
 </header>
 
@@ -88,7 +90,7 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
         <span>Android Instructions</span>
     </div>
     <h1>Add the Work Order App<br>to Your Android Phone</h1>
-    <p>Follow these steps to install the app on your home screen and enable notifications. It takes about two minutes.</p>
+    <p>Follow these steps in order. The whole process takes about two minutes.</p>
 </div>
 
 <div class="content">
@@ -102,10 +104,10 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
             </div>
             <div class="step-body">
                 <div class="step-title">Open Chrome and Go to the Site</div>
-                <div class="step-desc">Open the <strong>Chrome</strong> browser on your Android phone. In the address bar at the top, type <strong>chs-cs.com/workorder</strong> and tap Go.</div>
-                <div class="step-img short">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
-                    <div class="step-img-label">Screenshot: Chrome address bar showing chs-cs.com/workorder</div>
+                <div class="step-desc">Open the <strong>Chrome</strong> browser on your Android phone. In the address bar, type <strong>chs-cs.com/workorder</strong> and tap Go.</div>
+                <div class="tip">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <p>Must be <strong>Chrome</strong> — other Android browsers may not support the full installation.</p>
                 </div>
             </div>
         </div>
@@ -118,11 +120,8 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
             </div>
             <div class="step-body">
                 <div class="step-title">Log In With Your School Account</div>
-                <div class="step-desc">Sign in using your <strong>Warrick County Google account</strong> — the same one you use for school email. You should see your work order dashboard after signing in.</div>
-                <div class="step-img short">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <div class="step-img-label">Screenshot: Google sign-in screen</div>
-                </div>
+                <div class="step-desc">You'll see the screen below. Tap <strong>"Continue with Google"</strong> and sign in with your <strong>Warrick County Google account</strong> — the same one you use for school email.</div>
+                <img class="screenshot" src="images/setup/android-login.jpg" alt="WCSC Work Order login screen showing Continue with Google button">
             </div>
         </div>
 
@@ -133,17 +132,14 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
                 <div class="step-line"></div>
             </div>
             <div class="step-body">
-                <div class="step-title">Add to Your Home Screen</div>
-                <div class="step-desc">Chrome may automatically show a banner at the <strong>bottom of the screen</strong> that says <strong>"Add Work Orders to Home screen."</strong> If you see it, tap it and skip to Step 5.</div>
-                <div class="or-divider"><span>If you don't see a banner</span></div>
-                <div class="step-desc" style="margin-bottom:14px">Tap the <strong>three-dot menu ( ⋮ )</strong> in the top right corner of Chrome, then tap <strong>"Add to Home screen."</strong></div>
-                <div class="tip">
+                <div class="step-title">Enable Notifications</div>
+                <div class="step-desc">After logging in you'll see your dashboard. A dark blue banner will appear at the top that says <strong>"Enable push notifications."</strong> Tap that banner.</div>
+                <img class="screenshot" src="images/setup/android-notif-banner.jpg" alt="Dashboard showing Enable push notifications banner">
+                <div class="step-desc" style="margin-top:16px">Your phone will then ask if you want to allow notifications. Tap <strong>"Allow."</strong></div>
+                <img class="screenshot" src="images/setup/android-notif-prompt.jpg" alt="Notification permission prompt showing Block and Allow buttons">
+                <div class="tip" style="margin-top:14px">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    <p>The three-dot menu is always in the <strong>upper right corner</strong> of Chrome, no matter what page you're on.</p>
-                </div>
-                <div class="step-img tall" style="margin-top:14px">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                    <div class="step-img-label">Screenshot: Chrome three-dot menu open with "Add to Home screen" option highlighted</div>
+                    <p>This is what lets the app alert you when a work order needs your attention — even when the app isn't open.</p>
                 </div>
             </div>
         </div>
@@ -155,12 +151,9 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
                 <div class="step-line"></div>
             </div>
             <div class="step-body">
-                <div class="step-title">Tap "Install" or "Add" to Confirm</div>
-                <div class="step-desc">A prompt will appear asking you to confirm. Tap <strong>"Install"</strong> or <strong>"Add"</strong> — the wording may vary slightly depending on your Android version.</div>
-                <div class="step-img short">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    <div class="step-img-label">Screenshot: "Add to Home screen" confirmation prompt</div>
-                </div>
+                <div class="step-title">Open the Chrome Menu</div>
+                <div class="step-desc">Tap the <strong>three-dot menu ( ⋮ )</strong> in the top right corner of Chrome. Scroll down and tap <strong>"Add to Home screen."</strong></div>
+                <img class="screenshot" src="images/setup/android-menu.jpg" alt="Chrome three-dot menu open with Add to Home screen option visible at the bottom">
             </div>
         </div>
 
@@ -171,12 +164,9 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
                 <div class="step-line"></div>
             </div>
             <div class="step-body">
-                <div class="step-title">Open the App From Your Home Screen</div>
-                <div class="step-desc">Go to your Android home screen and find the <strong>Work Orders</strong> icon. <strong>Always open the app this way</strong> — using the home screen icon instead of Chrome. Tap it now to continue setup.</div>
-                <div class="step-img short">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                    <div class="step-img-label">Screenshot: Android home screen with Work Orders icon</div>
-                </div>
+                <div class="step-title">Choose "Install" — Not "Create Shortcut"</div>
+                <div class="step-desc">A dialog will appear with two options. Tap <strong>"Install"</strong> — this installs the app properly. Do <strong>not</strong> tap "Create shortcut," as that only adds a browser link and won't work the same way.</div>
+                <img class="screenshot" src="images/setup/android-add-to-home.jpg" alt="Add to home screen dialog showing Install and Create shortcut options">
             </div>
         </div>
 
@@ -187,15 +177,28 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-
                 <div class="step-line"></div>
             </div>
             <div class="step-body">
-                <div class="step-title">Allow Notifications When Prompted</div>
-                <div class="step-desc">When the app opens, your phone will ask <strong>"Allow Work Orders to send you notifications?"</strong> Tap <strong>"Allow."</strong> This is what lets the app alert you when a work order needs your attention — even when the app isn't open.</div>
-                <div class="tip">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    <p>On some Android phones, you may instead see a blue banner at the top of the app saying <strong>"Enable push notifications"</strong> — tap that banner, then tap <strong>"Allow"</strong> on the prompt that follows.</p>
+                <div class="step-title">Confirm the Installation</div>
+                <div class="step-desc">A confirmation dialog will appear showing <strong>"WCSC Work Orders."</strong> Tap <strong>"Install"</strong> to finish.</div>
+                <img class="screenshot" src="images/setup/android-install-confirm.jpg" alt="Install app confirmation dialog for WCSC Work Orders">
+            </div>
+        </div>
+
+        <!-- STEP 7 -->
+        <div class="step">
+            <div class="step-number-col">
+                <div class="step-num">7</div>
+                <div class="step-line"></div>
+            </div>
+            <div class="step-body">
+                <div class="step-title">Find the App on Your Home Screen</div>
+                <div class="step-desc">The <strong>Work Orders</strong> icon will appear on your Android home screen. From now on, <strong>always open the app using this icon</strong> — not by opening Chrome and going to the website.</div>
+                <div style="margin-top:14px;text-align:center">
+                    <img src="mobile/icon.php?size=192" alt="Work Orders app icon" style="width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(0,0,0,.18)">
+                    <div style="margin-top:10px;font-size:13px;font-weight:600;color:var(--muted)">Work Orders</div>
                 </div>
-                <div class="step-img tall" style="margin-top:14px">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                    <div class="step-img-label">Screenshot: Android notification permission prompt</div>
+                <div class="important" style="margin-top:14px">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <p>You're all set! The app is installed and notifications are enabled. You'll receive alerts whenever a work order needs your attention.</p>
                 </div>
             </div>
         </div>

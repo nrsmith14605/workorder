@@ -44,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'add') {
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
-        $em    = strtolower(trim($_POST['email'] ?? ''));
+        $raw   = strtolower(trim($_POST['email'] ?? ''));
+        $em    = preg_replace('/@.*$/', '', $raw) . '@warrick.k12.in.us';
         $role  = $_POST['role'] ?? 'U';
         $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
@@ -63,12 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id    = (int)($_POST['user_id'] ?? 0);
         $fn    = trim($_POST['first_name'] ?? '');
         $ln    = trim($_POST['last_name']  ?? '');
+        $raw   = strtolower(trim($_POST['email'] ?? ''));
+        $em    = preg_replace('/@.*$/', '', $raw) . '@warrick.k12.in.us';
         $role  = $_POST['role'] ?? 'U';
         $bldg  = in_array($role, $building_roles) ? (trim($_POST['building'] ?? '') ?: null) : null;
 
-        if ($id && $fn && $ln && in_array($role, ['A','MT','MM','BP','BT','BC','BM','MW','U'])) {
-            $stmt = $conn->prepare("UPDATE users SET first_name=?,last_name=?,role=?,building=? WHERE id=?");
-            $stmt->bind_param('ssssi', $fn, $ln, $role, $bldg, $id);
+        if ($id && $fn && $ln && $em && in_array($role, ['A','MT','MM','BP','BT','BC','BM','MW','U'])) {
+            $stmt = $conn->prepare("UPDATE users SET first_name=?,last_name=?,email=?,role=?,building=? WHERE id=?");
+            $stmt->bind_param('sssssi', $fn, $ln, $em, $role, $bldg, $id);
             $stmt->execute();
             $action_msg = 'success:User updated.';
             $stmt->close();
@@ -99,8 +102,8 @@ $conn->close();
 $buildings = ['CHS','BHS','THS','WPCC','CSMS','CNMS','BMS','LUM','CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','TMS','WEC','YANK'];
 $building_groups = [
     'High Schools'   => ['CHS','BHS','THS','WPCC'],
-    'Middle Schools' => ['CSMS','CNMS','BMS','LUM'],
-    'Elementary'     => ['CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','TMS','WEC','YANK'],
+    'Middle Schools' => ['CSMS','CNMS','BMS','LUM','TMS'],
+    'Elementary'     => ['CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','WEC','YANK'],
 ];
 
 $role_labels = [
@@ -169,14 +172,19 @@ body{font-family:'Barlow',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height
 .filter-tabs{display:flex;gap:6px;flex-wrap:wrap}
 .filter-tab{padding:5px 14px;border-radius:20px;border:1px solid #e8ecf0;background:transparent;font-size:12px;font-weight:600;cursor:pointer;color:#6b7a8d;font-family:'Barlow',sans-serif;transition:all .12s}
 .filter-tab.active{background:var(--cyan);color:#fff;border-color:var(--cyan)}
-.search-wrap{margin-left:0}
+.search-wrap{margin-left:0;display:flex;align-items:center;gap:6px}
 .search-wrap input{padding:7px 14px;border:1px solid #d0d5dd;border-radius:20px;font-size:13px;font-family:'Barlow',sans-serif;width:220px;color:#1a1a2e}
 .search-wrap input:focus{outline:none;border-color:var(--cyan)}
+.search-clear{background:none;border:none;cursor:pointer;color:#b0b8c4;font-size:18px;line-height:1;padding:2px;display:flex;align-items:center;transition:color .15s}
+.search-clear:hover{color:#6b7a8d}
 
 /* ── USERS TABLE ── */
 .table-wrap{background:#fff;border:1px solid #e8ecf0;border-radius:12px;overflow:hidden;margin-bottom:32px}
 .data-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
 .data-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.data-table td.bldg-cell{overflow:visible;white-space:normal;line-height:1.8}
+.bldg-chip{display:inline-block;background:#eef2f7;color:#4a5568;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:600;margin:1px 3px 1px 0}
+.bldg-more{background:none;border:none;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;padding:2px 4px;font-family:'Barlow',sans-serif;text-decoration:underline}
 .data-table th{padding:11px 16px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7a8d;background:#f8f9fa;border-bottom:1px solid #e8ecf0}
 .data-table td{padding:13px 16px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
 .data-table tr:last-child td{border-bottom:none}
@@ -227,6 +235,11 @@ label.form-label{display:block;font-size:11px;font-weight:700;color:#6b7a8d;marg
 input[type=text],input[type=email],select{width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 13px;font-size:14px;font-family:'Barlow',sans-serif;color:#1a1a2e;background:#fff}
 input:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
 select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:34px}
+.email-prefix-wrap{display:flex;align-items:center;border:1px solid #d0d5dd;border-radius:9px;overflow:hidden;background:#fff;transition:border-color .15s,box-shadow .15s}
+.email-prefix-wrap:focus-within{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,182,213,.12)}
+.email-prefix-wrap input[type=text]{border:none;border-radius:0;box-shadow:none;flex:1;min-width:0;padding:10px 8px 10px 13px}
+.email-prefix-wrap input[type=text]:focus{outline:none;box-shadow:none}
+.email-suffix{font-size:13px;color:#6b7a8d;background:#f4f6f8;padding:10px 12px 10px 6px;white-space:nowrap;border-left:1px solid #e4e8ee;user-select:none}
 .building-group{display:none}
 .building-group.visible{display:block}
 
@@ -273,19 +286,19 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <!-- Filter bar -->
             <div class="filter-bar">
                 <div class="filter-tabs">
-                    <button class="filter-tab active" data-role="all">All</button>
-                    <button class="filter-tab" data-role="A">Admins</button>
-                    <button class="filter-tab" data-role="MT">Tech Managers</button>
-                    <button class="filter-tab" data-role="MM">Maint Managers</button>
-                    <button class="filter-tab" data-role="BP">Building Principals</button>
-                    <button class="filter-tab" data-role="BT">Building Tech</button>
-                    <button class="filter-tab" data-role="BC">Building Custodian</button>
-                    <button class="filter-tab" data-role="BM">Building Maintenance</button>
-                    <button class="filter-tab" data-role="MW">Maintenance Workers</button>
-                    <button class="filter-tab" data-role="U">Users</button>
+                    <button class="filter-tab active" data-roles="">All</button>
+                    <button class="filter-tab" data-roles="A">Admins</button>
+                    <button class="filter-tab" data-roles="MT,MM">Managers</button>
+                    <button class="filter-tab" data-roles="BP">Principals</button>
+                    <button class="filter-tab" data-roles="BT">Technicians</button>
+                    <button class="filter-tab" data-roles="BC">Custodians</button>
+                    <button class="filter-tab" data-roles="BM">Building Maintenance</button>
+                    <button class="filter-tab" data-roles="MW">Maintenance Workers</button>
+                    <button class="filter-tab" data-roles="__inactive__">Inactive</button>
                 </div>
                 <div class="search-wrap">
                     <input type="text" id="user-search" placeholder="Search name or email…">
+                    <button class="search-clear" id="search-clear-btn" type="button" title="Clear search"><i class="ti ti-circle-x"></i></button>
                 </div>
             </div>
 
@@ -293,24 +306,22 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <div class="table-wrap">
                 <table class="data-table" id="users-table">
                     <colgroup>
-                        <col style="width:17%">
-                        <col style="width:26%">
                         <col style="width:20%">
-                        <col style="width:16%">
+                        <col style="width:28%">
+                        <col style="width:18%">
+                        <col style="width:24%">
                         <col style="width:10%">
-                        <col style="width:11%">
                     </colgroup>
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
-                            <th>Building</th>
-                            <th>Status</th>
+                            <th>Building(s)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="user-tbody">
                         <?php if (empty($users)): ?>
                         <tr>
                             <td colspan="6">
@@ -330,15 +341,26 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                         <tr class="user-row <?= $active ? '' : 'inactive' ?>"
                             data-role="<?= htmlspecialchars($r) ?>"
                             data-name="<?= htmlspecialchars(strtolower($u['first_name'].' '.$u['last_name'])) ?>"
+                            data-ln="<?= htmlspecialchars(strtolower($u['last_name'])) ?>"
                             data-email="<?= htmlspecialchars(strtolower($u['email'])) ?>">
                             <td><strong><?= htmlspecialchars($u['first_name'].' '.$u['last_name']) ?></strong></td>
                             <td style="color:#6b7a8d"><?= htmlspecialchars($u['email']) ?></td>
                             <td><span class="badge <?= $roleClass ?>"><?= htmlspecialchars($role_labels[$r] ?? $r) ?></span></td>
-                            <td><?= $u['building'] ? htmlspecialchars($u['building']) : '<span style="color:#d0d5dd">—</span>' ?></td>
-                            <td>
-                                <span class="badge <?= $active ? 'badge-active' : 'badge-inactive' ?>">
-                                    <?= $active ? 'Active' : 'Inactive' ?>
-                                </span>
+                            <?php
+                                $bldgs   = $u['building'] ? array_map('trim', explode(',', $u['building'])) : [];
+                                $visible = array_slice($bldgs, 0, 2);
+                                $hidden  = array_slice($bldgs, 2);
+                            ?>
+                            <td class="bldg-cell">
+                                <?php if (empty($bldgs)): ?>
+                                    <span style="color:#d0d5dd">—</span>
+                                <?php else: ?>
+                                    <?php foreach ($visible as $b): ?><span class="bldg-chip"><?= htmlspecialchars($b) ?></span><?php endforeach; ?>
+                                    <?php if ($hidden): ?>
+                                        <span class="bldg-extra" style="display:none"><?php foreach ($hidden as $b): ?><span class="bldg-chip"><?= htmlspecialchars($b) ?></span><?php endforeach; ?></span>
+                                        <button class="bldg-more" onclick="this.previousElementSibling.style.display='inline';this.style.display='none'">+<?= count($hidden) ?> more</button>
+                                    <?php endif; ?>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <div class="row-actions">
@@ -347,6 +369,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                                         data-id="<?= $u['id'] ?>"
                                         data-fn="<?= htmlspecialchars($u['first_name']) ?>"
                                         data-ln="<?= htmlspecialchars($u['last_name']) ?>"
+                                        data-email="<?= htmlspecialchars(preg_replace('/@.*$/', '', $u['email'])) ?>"
                                         data-role="<?= htmlspecialchars($r) ?>"
                                         data-building="<?= htmlspecialchars($u['building'] ?? '') ?>">
                                         <i class="ti ti-edit" aria-hidden="true"></i>
@@ -436,7 +459,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 <div class="form-row-2">
                     <div class="form-group" id="email-group">
                         <label class="form-label" for="f-email">Email *</label>
-                        <input type="email" id="f-email" name="email">
+                        <div class="email-prefix-wrap">
+                            <input type="text" id="f-email" name="email" placeholder="dsmith" autocomplete="off" spellcheck="false">
+                            <span class="email-suffix">@warrick.k12.in.us</span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="f-role">Role *</label>
@@ -489,29 +515,47 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 <script>
 
 // ── Filter tabs ───────────────────────────────────────────
-document.querySelectorAll('[data-role]').forEach(function(tab) {
+document.querySelectorAll('[data-roles]').forEach(function(tab) {
     tab.addEventListener('click', function() {
         document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         filterTable();
     });
 });
-document.getElementById('user-search').addEventListener('input', filterTable);
+const searchInput = document.getElementById('user-search');
+const searchClear = document.getElementById('search-clear-btn');
+searchInput.addEventListener('input', filterTable);
+searchClear.addEventListener('click', function() {
+    searchInput.value = '';
+    this.style.display = 'none';
+    filterTable();
+});
 
 // ── Pagination ────────────────────────────────────────────
 const PAGE_SIZE = 10;
 let currentPage = 1;
 
 function filterTable() {
-    const role  = document.querySelector('.filter-tab.active').dataset.role;
+    const activeRoles = document.querySelector('.filter-tab.active').dataset.roles;
+    const roles = activeRoles ? activeRoles.split(',') : [];
     const query = document.getElementById('user-search').value.toLowerCase();
     const rows  = Array.from(document.querySelectorAll('.user-row'));
 
+    const isInactiveTab = activeRoles === '__inactive__';
+    const isAllTab      = activeRoles === '';
+
     rows.forEach(function(row) {
-        const roleMatch  = role === 'all' || row.dataset.role === role;
+        const inactive   = row.classList.contains('inactive');
         const nameMatch  = row.dataset.name.includes(query);
         const emailMatch = row.dataset.email.includes(query);
-        row._matches = roleMatch && (nameMatch || emailMatch);
+        const textMatch  = nameMatch || emailMatch;
+
+        let roleMatch;
+        if (isInactiveTab)      roleMatch = inactive;
+        else if (isAllTab)      roleMatch = true;
+        else                    roleMatch = !inactive && roles.includes(row.dataset.role);
+
+        row._matches = query ? textMatch : (roleMatch && textMatch);
     });
 
     currentPage = 1;
@@ -519,10 +563,20 @@ function filterTable() {
 }
 
 function renderPage() {
+    const tbody   = document.getElementById('user-tbody');
     const rows    = Array.from(document.querySelectorAll('.user-row'));
     const matched = rows.filter(r => r._matches !== false);
-    const total   = matched.length;
-    const pages   = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    matched.sort((a, b) => {
+        const aInactive = a.classList.contains('inactive') ? 1 : 0;
+        const bInactive = b.classList.contains('inactive') ? 1 : 0;
+        if (aInactive !== bInactive) return aInactive - bInactive;
+        return a.dataset.ln.localeCompare(b.dataset.ln);
+    });
+    matched.forEach(row => tbody.appendChild(row));
+
+    const total = matched.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     if (currentPage > pages) currentPage = pages;
 
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -562,9 +616,17 @@ function goPage(n) {
     renderPage();
 }
 
+// ── Restore active filter after page reload ───────────────
+const savedRoles = sessionStorage.getItem('manage_filter');
+if (savedRoles !== null) {
+    document.querySelectorAll('.filter-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.roles === savedRoles);
+    });
+}
+
 // Init
 document.querySelectorAll('.user-row').forEach(r => r._matches = true);
-renderPage();
+filterTable();
 
 // ── Building field visibility ─────────────────────────────
 // MW does NOT get a building field — they are corp-wide
@@ -591,6 +653,7 @@ document.getElementById('add-user-btn').addEventListener('click', function() {
     document.getElementById('f-building').value = '';
     document.getElementById('building-group').classList.remove('visible');
     document.getElementById('user-modal').classList.add('open');
+    setTimeout(() => document.getElementById('f-first').focus(), 50);
 });
 
 // ── Edit user modal ───────────────────────────────────────
@@ -603,9 +666,9 @@ document.querySelectorAll('.edit-btn').forEach(function(btn) {
         document.getElementById('f-user-id').value  = this.dataset.id;
         document.getElementById('f-first').value    = this.dataset.fn;
         document.getElementById('f-last').value     = this.dataset.ln;
-        document.getElementById('f-email').value    = '';
-        document.getElementById('f-email').required = false;
-        document.getElementById('email-group').style.display = 'none';
+        document.getElementById('f-email').value    = this.dataset.email || '';
+        document.getElementById('f-email').required = true;
+        document.getElementById('email-group').style.display = '';
         document.getElementById('f-role').value     = role;
         document.querySelectorAll('.bldg-checkbox').forEach(cb => {
             cb.checked = assignedBuildings.includes(cb.value);
@@ -627,6 +690,7 @@ document.getElementById('user-modal').addEventListener('click', function(e){ if(
 document.querySelector('#user-modal form').addEventListener('submit', function() {
     const checked = Array.from(document.querySelectorAll('.bldg-checkbox:checked')).map(cb => cb.value);
     document.getElementById('f-building').value = checked.join(',');
+    sessionStorage.setItem('manage_filter', document.querySelector('.filter-tab.active').dataset.roles);
 });
 
 </script>

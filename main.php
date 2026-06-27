@@ -24,7 +24,8 @@ $initials   = strtoupper(substr($name_parts[0], 0, 1) . (isset($name_parts[1]) ?
 
 // Role from session (set during login by DB lookup)
 $user_role     = $_SESSION['user_role']     ?? 'U';
-$user_building = $_SESSION['user_building'] ?? null;
+$user_building      = $_SESSION['user_building']      ?? null;
+$user_last_building = $_SESSION['user_last_building'] ?? null;
 
 // ── Mobile redirect for field roles ──────────────────────────
 $_is_mobile = (bool) preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
@@ -102,6 +103,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
         $upd2->bind_param('si', $initial_handler, $insert_id);
         $upd2->execute();
         $upd2->close();
+
+        // Remember last building for U role users
+        if ($user_role === 'U') {
+            $ulb = $conn->prepare("UPDATE users SET last_building=? WHERE email=?");
+            $ulb->bind_param('ss', $building, $user_email);
+            $ulb->execute();
+            $ulb->close();
+            $_SESSION['user_last_building'] = $building;
+            $user_last_building = $building;
+        }
 
         $email_err = null;
         require_once __DIR__ . '/wo_mailer.php';
@@ -867,28 +878,33 @@ if (empty($orders)): ?>
                         </div>
                         <div class="form-group" style="margin-bottom:14px">
                             <label class="form-label" for="f-building">Building *</label>
+                            <?php
+                                $building_restricted_roles = ['BP','BT','BC','BM'];
+                                $assigned_buildings = array_filter(array_map('trim', explode(',', $user_building ?? '')));
+                                $all_buildings = [
+                                    'High Schools'   => ['CHS','BHS','THS','WPCC'],
+                                    'Middle Schools' => ['CSMS','CNMS','BMS','LUM','TMS'],
+                                    'Elementary'     => ['CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','WEC','YANK'],
+                                ];
+                            ?>
                             <select id="f-building" name="building" required>
-                                <?php if ($user_role === 'BP' && $user_building): ?>
-                                    <option value="<?= htmlspecialchars($user_building) ?>" selected><?= htmlspecialchars($user_building) ?></option>
-                                    <option disabled>──────────</option>
+                                <?php if (in_array($user_role, $building_restricted_roles) && $assigned_buildings): ?>
+                                    <?php if (count($assigned_buildings) > 1): ?>
+                                        <option value="">Select building…</option>
+                                    <?php endif; ?>
+                                    <?php foreach ($assigned_buildings as $b): ?>
+                                        <option value="<?= htmlspecialchars($b) ?>" <?= count($assigned_buildings) === 1 ? 'selected' : '' ?>><?= htmlspecialchars($b) ?></option>
+                                    <?php endforeach; ?>
                                 <?php else: ?>
                                     <option value="">Select building…</option>
+                                    <?php foreach ($all_buildings as $grp => $blist): ?>
+                                    <optgroup label="<?= $grp ?>">
+                                        <?php foreach ($blist as $b): ?>
+                                        <option value="<?= $b ?>" <?= ($user_role === 'U' && $user_last_building === $b) ? 'selected' : '' ?>><?= $b ?></option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                    <?php endforeach; ?>
                                 <?php endif; ?>
-                                <optgroup label="High Schools">
-                                    <?php foreach (['CHS','BHS','THS','WPCC'] as $b): ?>
-                                    <option value="<?= $b ?>"><?= $b ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <optgroup label="Middle Schools">
-                                    <?php foreach (['CSMS','CNMS','BMS','LUM'] as $b): ?>
-                                    <option value="<?= $b ?>"><?= $b ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                                <optgroup label="Elementary">
-                                    <?php foreach (['CHAN','ELB','JHC','LOGE','LYN','NEWB','OAK','SHAR','TEN','TMS','WEC','YANK'] as $b): ?>
-                                    <option value="<?= $b ?>"><?= $b ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom:14px">
